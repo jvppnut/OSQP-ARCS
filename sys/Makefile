@@ -32,7 +32,7 @@ LD = g++
 
 # リンカに渡すオプション
 LD1FLAGS = -L.
-LDFLAGS = -lpthread -lm -lncursesw -lrt -ltinfo -lpng -lz
+LDFLAGS = -lpthread -lm -lncursesw -lrt -ltinfo -lpng -lz -losqpstatic
 
 # 制御コード用ファイルリスト生成
 CTRL0=$(shell ls *.cc)

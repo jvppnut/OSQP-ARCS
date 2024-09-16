@@ -20,11 +20,11 @@ class EquipParams {
 	public:
 		// 画面サイズの設定 (モニタ解像度に合うように設定すること)
 		// 1024×600(WSVGA) の場合に下記をアンコメントすること
-		//static constexpr int SCR_VERTICAL_MAX = 36;		//!< [文字] 画面の最大高さ文字数
-		//static constexpr int SCR_HORIZONTAL_MAX = 127;	//!< [文字] 画面の最大幅文字数
+		static constexpr int SCR_VERTICAL_MAX = 36;		//!< [文字] 画面の最大高さ文字数
+		static constexpr int SCR_HORIZONTAL_MAX = 127;	//!< [文字] 画面の最大幅文字数
 		// 1024×768(XGA) の場合に下記をアンコメントすること
-		static constexpr int SCR_VERTICAL_MAX = 47;			//!< [文字] 画面の最大高さ文字数
-		static constexpr int SCR_HORIZONTAL_MAX = 127;		//!< [文字] 画面の最大幅文字数
+		//static constexpr int SCR_VERTICAL_MAX = 47;			//!< [文字] 画面の最大高さ文字数
+		//static constexpr int SCR_HORIZONTAL_MAX = 127;		//!< [文字] 画面の最大幅文字数
 		// 1280×1024(SXGA) の場合に下記をアンコメントすること
 		//static constexpr int SCR_VERTICAL_MAX = 63;		//!< [文字] 画面の最大高さ文字数
 		//static constexpr int SCR_HORIZONTAL_MAX = 159;	//!< [文字] 画面の最大幅文字数

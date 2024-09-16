@@ -10,6 +10,12 @@
 // MIT License. For details, see the LICENSE file.
 
 
+//TODO Add positive definiteness (and thus convexity) check for P matrix
+//TODO Add lower and upper bound checking (Upper bounds must be larger than lower bounds)
+//TODO Add error code return for solve() function
+//TODO Add functions for changing specific (not all) settings. Which ones are most important? Gotta check documentation
+//TODO Add function for observing solver status
+
 #ifndef OSQPSOLVER_ARCS
 #define OSQPSOLVER_ARCS
 
@@ -108,6 +114,9 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             osqp_set_default_settings(settings.get());
             settings->polishing = 1;
             settings->verbose = 0;
+            //settings->eps_abs = 1e-5;
+            //settings->eps_rel = 1e-5;
+            //settings->max_iter = 10000;
 
             
             //Load matrix data on the OSQPCscMatrix structs P and A using OSQP csc_set_data
@@ -163,6 +172,193 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
 
 
+        OSQPInt Update_qVec(const ArcsMat<N_VARS,1>& qVec){
+            OSQPInt exitflag;
+
+            //Check if solver has been initialized (if its pointer is not null)
+            //arcs_assert(static_cast<bool>(solver));     
+            qVec.StoreArray(q);
+            exitflag = osqp_update_data_vec(solver.get(), q.data(), OSQP_NULL, OSQP_NULL);
+
+            return exitflag;            
+        }
+
+        OSQPInt Update_lVec(const ArcsMat<M_CONSTRAINTS,1>& lVec)
+        {
+            OSQPInt exitflag;
+
+            //Check if solver has been initialized (if its pointer is not null)
+            //arcs_assert(static_cast<bool>(solver));     
+            lVec.StoreArray(l);
+            exitflag = osqp_update_data_vec(solver.get(), OSQP_NULL, l.data(), OSQP_NULL);
+
+            return exitflag;            
+        }
+
+
+        OSQPInt Update_uVec(const ArcsMat<M_CONSTRAINTS,1>& uVec)
+        {
+            OSQPInt exitflag;
+
+            //Check if solver has been initialized (if its pointer is not null)
+            //arcs_assert(static_cast<bool>(solver));    
+            uVec.StoreArray(u);
+            exitflag = osqp_update_data_vec(solver.get(), OSQP_NULL, OSQP_NULL, u.data());
+
+            return exitflag;            
+        }
+
+        OSQPInt Update_Vecs(const ArcsMat<N_VARS,1>& qVec, const ArcsMat<M_CONSTRAINTS,1>& lVec, const ArcsMat<M_CONSTRAINTS,1>& uVec)
+        {
+            OSQPInt exitflag;
+
+            //Check if solver has been initialized (if its pointer is not null)
+            //arcs_assert(static_cast<bool>(solver));    
+            qVec.StoreArray(q);
+            lVec.StoreArray(l);
+            uVec.StoreArray(u);
+            exitflag = osqp_update_data_vec(solver.get(), q.data(), l.data(), u.data());
+
+            return exitflag;    
+        }
+
+        OSQPInt Update_PMatrix(const ArcsMat<N_VARS,N_VARS>& P_new)
+        {
+            OSQPInt exitflag;
+            //Check first if matrix is symmetric and positive definite
+            arcs_assert(CheckSymmetryPositiveDef(P_new));
+
+            //Next, convert matrix to CSC format                                      
+
+
+            //Temporary storage for our CSC vectors
+            int cols = N_VARS;
+            std::vector<OSQPFloat> P_elements_tmp;
+            std::vector<OSQPInt> P_rows_tmp;
+            std::vector<OSQPInt> P_cols_tmp;
+            OSQPInt P_nnz_tmp = 0;
+
+
+
+            // Initialize the P_cols array
+            P_cols_tmp.resize(cols + 1, 0);
+
+            //CSC conversion
+            
+            for (int col = 0; col < cols; ++col) {
+                P_cols_tmp[col] = P_elements_tmp.size();  // Mark the start index of the column
+
+                for (int row = 0; row < col+1; ++row) {
+                    OSQPFloat val = P_new(row+1,col+1); //ArcsMat works with 1-base indexing                  
+
+
+                    if (std::abs(val)>zero_eps) {                        
+                        P_elements_tmp.push_back(val);            // Store non-zero value
+                        P_rows_tmp.push_back(row);       // Store the corresponding row index
+                        P_nnz_tmp++; //Count number of non-zero elements
+                    }
+                    
+                }
+            }
+            P_cols_tmp[cols]=P_elements_tmp.size(); //Needed for filling last indexing element  
+
+            //We compare now if the sparsity pattern of P_new is the same as P by checking row and col indexes
+            arcs_assert(P_rows_tmp==P_rows);
+            arcs_assert(P_cols_tmp==P_cols);
+            arcs_assert(P_nnz_tmp==P_nnz);
+
+            //As sparsity pattern is the same, copy only vector with new elements
+            P_elements = P_elements_tmp;
+
+            //Finally, update the P matrix data with our new CSC vectors
+            exitflag = osqp_update_data_mat(solver.get(),
+                                        P_elements.data(), OSQP_NULL, P_nnz,
+                                        OSQP_NULL, OSQP_NULL, 0);
+
+            return exitflag;            
+
+        }
+
+
+        OSQPInt Update_AMatrix(const ArcsMat<M_CONSTRAINTS,N_VARS>& A_new)
+        {
+            OSQPInt exitflag;
+
+            //Convert new A matrix to CSC format                                      
+
+
+            int rows = M_CONSTRAINTS;
+            int cols = N_VARS;
+            //Temporary storage for our CSC vectors
+            std::vector<OSQPFloat> A_elements_tmp;
+            std::vector<OSQPInt> A_rows_tmp;
+            std::vector<OSQPInt> A_cols_tmp;
+            OSQPInt A_nnz_tmp = 0;
+
+
+            //Clear all elements of our CSC arrays
+            //We do this because the A matrix may change during runtime and thus we should empty the vector structs beforehand
+
+            // Initialize the A_cols array
+            A_cols_tmp.resize(cols + 1, 0);
+
+            // Iterate over each column
+            
+            for (int col = 0; col < cols; ++col) {
+                A_cols_tmp[col] = A_elements_tmp.size();  // Mark the start index of the column
+
+                for (int row = 0; row < rows; ++row) {
+                    OSQPFloat val = A_new(row+1,col+1); //ArcsMat works with 1-base indexing                  
+
+                    if (std::abs(val)>zero_eps) {                        
+                        A_elements_tmp.push_back(val);            // Store non-zero value
+                        A_rows_tmp.push_back(row);       // Store the corresponding row index
+                        A_nnz_tmp++; //Count number of non-zero elements
+                    }
+                    
+                }
+            }
+            A_cols_tmp[cols]=A_elements_tmp.size(); //Needed for filling last indexing element 
+
+            //We compare now if the sparsity pattern of P_new is the same as P by checking row and col indexes
+            arcs_assert(A_rows_tmp==A_rows);
+            arcs_assert(A_cols_tmp==A_cols);
+            arcs_assert(A_nnz_tmp==A_nnz);
+
+            //As sparsity pattern is the same, copy only vector with new elements
+            A_elements = A_elements_tmp;
+
+            //Finally, update the P matrix data with our new CSC vectors
+            exitflag = osqp_update_data_mat(solver.get(),
+                                        OSQP_NULL, OSQP_NULL, 0,
+                                        A_elements.data(), OSQP_NULL, A_nnz);
+
+            return exitflag;            
+
+        }
+
+
+        bool CheckSymmetryPositiveDef(const ArcsMat<N_VARS,N_VARS>& Pcheck)
+        {
+            
+            //Check first if matrix is symmetric
+            //Iterate on upper triangular part (Pcheck is indexed from 1 as per ArcsMat def)
+            for (size_t i = 0; i < N_VARS; ++i) {
+                for (size_t j = i + 1; j < N_VARS; ++j) { 
+                    if (Pcheck(i+1,j+1) != Pcheck(j+1,i+1)){
+                        return false;
+                    }
+                }
+            }
+
+
+            //If symmetry check is passed, then check if its positive definite
+            //TODO: Implement positive definiteness check (Too lazy to do now...)
+            return true;
+        }
+
+
+
 
 
         private:
@@ -197,7 +393,7 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
                 for (int row = 0; row < col+1; ++row) {
                     OSQPFloat val = Pmat(row+1,col+1); //ArcsMat works with 1-base indexing                  
 
-                    if (abs(val)>zero_eps) {                        
+                    if (std::abs(val)>zero_eps) {                        
                         P_elements.push_back(val);            // Store non-zero value
                         P_rows.push_back(row);       // Store the corresponding row index
                         P_nnz++; //Count number of non-zero elements
@@ -233,7 +429,7 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
                 for (int row = 0; row < rows; ++row) {
                     OSQPFloat val = Amat(row+1,col+1); //ArcsMat works with 1-base indexing                  
 
-                    if (abs(val)>zero_eps) {                        
+                    if (std::abs(val)>zero_eps) {                        
                         A_elements.push_back(val);            // Store non-zero value
                         A_rows.push_back(row);       // Store the corresponding row index
                         A_nnz++; //Count number of non-zero elements

@@ -1,0 +1,46 @@
+{
+    "configurations": [
+        {
+            "name": "Linux/WSL2",
+            "includePath": [
+                "/usr/include/**",
+                "./",
+                "./lib/",
+                "./sys/",
+                "./robot/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "ARCS_IN"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        },
+        {
+            "name": "Linux/Samba",
+            "includePath": [
+                "%INCLUDE%/**",
+                "./",
+                "./lib/",
+                "./sys/",
+                "./robot/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "ARCS_IN"
+            ],
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
