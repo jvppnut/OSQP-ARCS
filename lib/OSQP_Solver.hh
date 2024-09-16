@@ -2,7 +2,10 @@
 //! @brief C++ ARCS wrapper for OSQP solver (Template class)
 //!
 //! C++ wrapper for using OSQP solver on ARCS
-//!
+//! Solves the quadratic program
+//!     minimize    0.5*x'*P*x + q'*x
+//!     subject to      l <= Ax <= u
+//!                 
 //! @date 2024/9/9
 //! @author Juan Padron
 //
@@ -50,27 +53,13 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
         public:
 
 
-        OSQP_Solver(void):
-            solver(nullptr, OSQPSolver_deleter),
-            settings(nullptr, OSQPSettings_deleter),
-            P(nullptr, OSQPCscMatrix_deleter),
-            A(nullptr, OSQPCscMatrix_deleter),
-            q(),
-            l(),
-            u(),
-            P_elements(),
-            P_rows(),
-            P_cols(),
-            P_nnz(0),
-            A_elements(),
-            A_rows(),
-            A_cols(),
-            A_nnz(0)
-        {
-            printf("OSQP_Solver instantiation created \n");
-        }
 
-
+        //! @brief OSQP_Solver class constructor
+        //! @param[in] Pmat	   Hessian matrix P (quadratic cost) - Must be positive semidefinite symmetric
+        //! @param[in] Amat    Constraint matrix A
+        //! @param[in] qVec    Linear cost vector q
+        //! @param[in] lVec    Constraint lower bound vector l
+        //! @param[in] uVec    Constraint upper bound vector u - Its values must be greater than lVec
         OSQP_Solver(const ArcsMat<N_VARS,N_VARS>& Pmat, const ArcsMat<M_CONSTRAINTS,N_VARS>& Amat, const ArcsMat<N_VARS,1>& qVec, const ArcsMat<M_CONSTRAINTS,1>& lVec, const ArcsMat<M_CONSTRAINTS,1>& uVec):
             solver(nullptr, OSQPSolver_deleter),
             settings(nullptr, OSQPSettings_deleter),
@@ -91,6 +80,9 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
 
             OSQPInt exitflag;
+
+            //Checks if P is symmetric and positive definite
+            arcs_assert(CheckSymmetryPositiveDef(Pmat));
             
 
             //Convert [q,l,u] ArcsMat vectors to arrays, [P,A] ArcsMat matrices to CSC format
@@ -149,13 +141,15 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
 
 
-
+        //! @brief OSQP_Solver class destructor
         ~OSQP_Solver(void)
         {
             printf("OSQP_Solver instantiation destroyed \n");
         }
 
-
+        //! @brief  Minimizes 0.5*x'*P*x + q'*x subject to constraint l <= Ax <= u
+        //! @param[out] solution_array	Optimal solution x* as an std::array
+        //! @return OSQP exitflag
         OSQPInt solve(std::array<OSQPFloat,N_VARS>& solution_array){
             OSQPInt exitflag;
 
@@ -171,7 +165,9 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
         }
 
 
-
+        //! @brief  Updates linear cost vector q
+        //! @param[in] qVec New linear cost vector
+        //! @return OSQP exitflag
         OSQPInt Update_qVec(const ArcsMat<N_VARS,1>& qVec){
             OSQPInt exitflag;
 
@@ -183,6 +179,9 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             return exitflag;            
         }
 
+        //! @brief  Updates constraint lower bound vector l
+        //! @param[in] lVec New constraint lower bound vector
+        //! @return OSQP exitflag
         OSQPInt Update_lVec(const ArcsMat<M_CONSTRAINTS,1>& lVec)
         {
             OSQPInt exitflag;
@@ -195,7 +194,9 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             return exitflag;            
         }
 
-
+        //! @brief  Updates constraint upper bound vector u
+        //! @param[in] uVec New constraint upper bound vector
+        //! @return OSQP exitflag
         OSQPInt Update_uVec(const ArcsMat<M_CONSTRAINTS,1>& uVec)
         {
             OSQPInt exitflag;
@@ -208,6 +209,11 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             return exitflag;            
         }
 
+        //! @brief  Updates linear cost vector 
+        //! @param[in] qVec New linear cost q vector
+        //! @param[in] lVec New constraint lower bound l vector
+        //! @param[in] uVec New constraint upper bound u vector
+        //! @return OSQP exitflag
         OSQPInt Update_Vecs(const ArcsMat<N_VARS,1>& qVec, const ArcsMat<M_CONSTRAINTS,1>& lVec, const ArcsMat<M_CONSTRAINTS,1>& uVec)
         {
             OSQPInt exitflag;
@@ -222,6 +228,9 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             return exitflag;    
         }
 
+        //! @brief  Updates hessian matrix (quadratic cost)
+        //! @param[in] P_new New Hessian P matrix
+        //! @return OSQP exitflag
         OSQPInt Update_PMatrix(const ArcsMat<N_VARS,N_VARS>& P_new)
         {
             OSQPInt exitflag;
@@ -279,7 +288,9 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
         }
 
-
+        //! @brief  Updates constraint matrix A 
+        //! @param[in] A_new New constraint matrix
+        //! @return OSQP exitflag
         OSQPInt Update_AMatrix(const ArcsMat<M_CONSTRAINTS,N_VARS>& A_new)
         {
             OSQPInt exitflag;
@@ -338,6 +349,13 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
         }
 
 
+
+
+        private:
+
+        //! @brief  Checks if matrix is symmetric and positive definite
+        //! @param[in] Pcheck <NVARSxNVARS> square matrix
+        //! @return true if symmetric and pos. def., elsewhere false
         bool CheckSymmetryPositiveDef(const ArcsMat<N_VARS,N_VARS>& Pcheck)
         {
             
@@ -357,16 +375,8 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             return true;
         }
 
-
-
-
-
-        private:
-
-
-
-
-
+        //! @brief  Converts Hessian matrix to CSC (Compressed Sparse Column) format
+        //! @param[in] Pmat <N_VARSxN_VARS> square matrix in ArcsMat type
         void convertPtoCsc(const ArcsMat<N_VARS,N_VARS>& Pmat)
         {                       
             int cols = N_VARS;
@@ -405,6 +415,8 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
               
         }
 
+        //! @brief  Converts constraint matrix A to CSC (Compressed Sparse Column) format
+        //! @param[in] Amat Constraint matrix in ArcsMat type
         void convertAtoCsc(const ArcsMat<M_CONSTRAINTS,N_VARS>& Amat)
         {
             int rows = M_CONSTRAINTS;
@@ -442,6 +454,11 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             
         }
 
+        //! @brief  Only for internal testing, prints CSC vectors associated to a matrix
+        //! @param[in] values std::vector object containing elements of matrix
+        //! @param[in] rows std::vector object containing row indexes
+        //! @param[in] cols std::vector object containing column indexes
+        //! @param[in] nnz  Number of non-zero elements
         static void testPrintCscVectors(std::vector<OSQPFloat> values, std::vector<OSQPInt> rows, std::vector<OSQPInt> cols, OSQPInt nnz)
         {
             printf("Values: \n");
@@ -469,19 +486,21 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
         }
 
-
+        //! @brief  Deleter function for OSQPCscMatrix* type unique_ptr
         static void OSQPCscMatrix_deleter(OSQPCscMatrix* mat)
         {
             free(mat);
             printf("CsCMatrix ptr destroyed \n");
         }
 
+        //! @brief  Deleter function for OSQPSolver* type unique_ptr
         static void OSQPSolver_deleter(OSQPSolver* slv)
         {
             osqp_cleanup(slv);
             printf("Solver ptr destroyed \n");
         }
 
+        //! @brief  Deleter function for OSQPSettings* type unique_ptr
         static void OSQPSettings_deleter(OSQPSettings* stt)
         {
             free(stt);
@@ -489,7 +508,7 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
         }
 
 
-
+        //Member constants and variables
         const double zero_eps = 1e-16;  //For zeroing
 
         
