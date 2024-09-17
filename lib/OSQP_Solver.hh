@@ -1,11 +1,11 @@
 //! @file OSQP_Solver.hh
 //! @brief C++ ARCS wrapper for OSQP solver (Template class)
 //!
-//! C++ wrapper for using OSQP solver on ARCS
+//! C++ wrapper for using ADMM-based OSQP solver on ARCS
 //! Solves the quadratic program
 //!     minimize    0.5*x'*P*x + q'*x
 //!     subject to      l <= Ax <= u
-//!                 
+//!  (Check https://osqp.org/ for more details on the solver)               
 //! @date 2024/9/9
 //! @author Juan Padron
 //
@@ -17,7 +17,7 @@
 //TODO Add lower and upper bound checking (Upper bounds must be larger than lower bounds)
 //TODO Add error code return for solve() function
 //TODO Add functions for changing specific (not all) settings. Which ones are most important? Gotta check documentation
-//TODO Add function for observing solver status
+
 
 #ifndef OSQPSOLVER_ARCS
 #define OSQPSOLVER_ARCS
@@ -30,6 +30,7 @@
 #include <vector>
 #include <cmath>
 #include <cassert>
+#include <string>
 #include "ArcsMatrix.hh"
 
 // ARCS組込み用マクロ
@@ -42,6 +43,31 @@
 #endif
 
 namespace ARCS{
+    
+        //!@brief Struct for interfacing OSQP solver status with C++
+        struct OSQP_Status{
+            // solver status
+            std::string status = "";     ///< Status string, e.g. 'solved'
+            OSQPInt status_val = 0;     ///< Status as OSQPInt, defined in osqp_api_constants.h
+            OSQPInt status_polish = 0;  ///< Polishing status: successful (1), unperformed (0), unsuccessful (-1)
+
+            // solution quality
+            OSQPFloat obj_val = 0;      ///< Primal objective value
+            OSQPFloat prim_res = 0;     ///< Norm of primal residual
+            OSQPFloat dual_res = 0;     ///< Norm of dual residual
+
+            // algorithm information
+            OSQPInt   iter = 0;         ///< Number of iterations taken
+            OSQPInt   rho_updates = 0;  ///< Number of rho updates performned
+            OSQPFloat rho_estimate = 0; ///< Best rho estimate so far from residuals
+
+            // timing information
+            OSQPFloat setup_time = 0;  ///< Setup phase time (seconds)
+            OSQPFloat solve_time = 0;  ///< Solve phase time (seconds)
+            OSQPFloat update_time = 0; ///< Update phase time (seconds)
+            OSQPFloat polish_time = 0; ///< Polish phase time (seconds)
+            OSQPFloat run_time = 0;    ///< Total solve time (seconds)
+        };
 
 //! @brief OSQP solver wrapper class
 //! @tparam	N_VARS          Number of variables to optimize
@@ -51,6 +77,8 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
 
         public:
+
+
 
 
 
@@ -348,6 +376,36 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
         }
 
+
+
+        OSQP_Status getSolverStatus() const{
+            //OSQP_Status status;
+            OSQP_Status status;
+
+            status.status = std::string(solver->info->status);     ///< Status string, e.g. 'solved'
+            status.status_val = solver->info->status_val;     ///< Status as OSQPInt, defined in osqp_api_constants.h
+            status.status_polish = solver->info->status_polish;  ///< Polishing status: successful (1), unperformed (0), unsuccessful (-1)
+
+            // solution quality
+            status.obj_val = solver->info->obj_val;      ///< Primal objective value
+            status.prim_res = solver->info->prim_res;     ///< Norm of primal residual
+            status.dual_res = solver->info->dual_res;     ///< Norm of dual residual
+
+            // algorithm information
+            status.iter = solver->info->iter;         ///< Number of iterations taken
+            status.rho_updates = solver->info->rho_updates;  ///< Number of rho updates performned
+            status.rho_estimate = solver->info->rho_estimate; ///< Best rho estimate so far from residuals
+
+            // timing information
+            status.setup_time = solver->info->setup_time;  ///< Setup phase time (seconds)
+            status.solve_time = solver->info->solve_time;  ///< Solve phase time (seconds)
+            status.update_time = solver->info->update_time; ///< Update phase time (seconds)
+            status.polish_time = solver->info->polish_time; ///< Polish phase time (seconds)
+            status.run_time = solver->info->run_time;    ///< Total solve time (seconds)
+
+            return status;
+        }
+        
 
 
 

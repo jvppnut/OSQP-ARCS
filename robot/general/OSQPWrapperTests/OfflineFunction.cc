@@ -27,6 +27,36 @@
 
 using namespace ARCS;
 
+
+void printSolverStatus(const OSQP_Status& status)
+{
+	printf("\n\n");
+	printf("--- PRINTING SOLVER STATUS --- \n");
+	printf("-> Solver status: \n");
+	printf("Solver status: %s \n",status.status.c_str());
+	printf("Status value: %lld \n", status.status_val);
+	printf("Status polish: %lld \n", status.status_polish);
+
+	printf("-> Solution quality: \n");
+	printf("Primal objective value: %f \n", status.obj_val);
+	printf("Norm of primal residual: %f \n", status.prim_res);
+	printf("Norm of dual residual: %f \n", status.dual_res);
+
+	printf("-> Algorithm information: \n");
+	printf("Number of iterations taken: %lld \n", status.iter);
+	printf("Number of rho updates performed: %lld \n", status.rho_updates);
+	printf("Best rho estimate: %f \n", status.rho_estimate);
+
+	printf("-> Timing information: \n");
+	printf("Setup phase time: %f [us] \n", 1000000*status.setup_time);
+	printf("Solve time: %f [us] \n", 1000000*status.solve_time);
+	printf("Update phase time: %f [us] \n", 1000000*status.update_time);
+	printf("Polish phase time: %f [us] \n", 1000000*status.polish_time);
+	printf("Total solve time: %f [us] \n", 1000000*status.run_time);
+
+	printf("\n\n");
+}
+
 //! @brief エントリポイント
 //! @return 終了ステータス
 int main(void){
@@ -34,6 +64,7 @@ int main(void){
 	printf("OSQP Test File\n");
 
 	OSQPInt exitflag;
+	OSQP_Status status;	//Solver status
 	ArcsMat<2,1> solVector;	
 
 	/* -------- SOLVE TEST ------------*/
@@ -145,9 +176,16 @@ int main(void){
 	printf("Exitflag: %lld \n",exitflag);
 	disp(solVector);
 
+	/* -------- SOLVER STATUS CHECK TEST ------------*/
+	status = testSolver.getSolverStatus();
+	printSolverStatus(status);
+
 
 	// ここにオフライン計算のコードを記述
 	
 	return EXIT_SUCCESS;	// 正常終了
 }
+
+
+
 
