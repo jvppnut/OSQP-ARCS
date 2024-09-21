@@ -16,7 +16,6 @@
 //TODO Add positive definiteness (and thus convexity) check for P matrix
 //TODO Add lower and upper bound checking (Upper bounds must be larger than lower bounds)
 //TODO Add error code return for solve() function
-//TODO Add functions for changing specific (not all) settings. Which ones are most important? Gotta check documentation
 
 
 #ifndef OSQPSOLVER_ARCS
@@ -408,6 +407,61 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
         
 
 
+        //! @brief  Sets new absolute tolerance parameter
+        //! @param[in] absTolerance New absolute tolerance
+        //! @return OSQP exitflag
+        OSQPInt setAbsTolerance(const OSQPFloat absTolerance)
+        {
+            OSQPInt exitflag = 0;
+            arcs_assert(absTolerance>0);
+            settings->eps_abs = absTolerance;
+            exitflag = osqp_update_settings(solver.get(), settings.get());
+            return exitflag;
+        }
+
+        //! @brief  Sets new relative tolerance parameter
+        //! @param[in] relTolerance New relative tolerance
+        //! @return OSQP exitflag
+        OSQPInt setRelTolerance(const OSQPFloat relTolerance)
+        {
+            OSQPInt exitflag = 0;
+            arcs_assert(relTolerance>0);
+            settings->eps_abs = relTolerance;
+            exitflag = osqp_update_settings(solver.get(), settings.get());
+            return exitflag;
+        }
+
+        //! @brief  Sets new maximum of iterations for solver to terminate
+        //! @param[in] maxIterations New max. number of iterations
+        //! @return OSQP exitflag
+        OSQPInt setMaxIterations(const OSQPInt maxIterations)
+        {
+            OSQPInt exitflag = 0;
+            arcs_assert(maxIterations>0);
+            settings->max_iter = maxIterations;
+            exitflag = osqp_update_settings(solver.get(), settings.get());
+            return exitflag;
+        }
+
+        //! @brief  Enables/Disables warm starting
+        //! @param[in] warmStart "true" to enable warm starting, "false" to disable
+        //! @return OSQP exitflag
+        OSQPInt setWarmStart(const bool warmStart)
+        {
+            OSQPInt exitflag = 0;
+
+            //Rewrite true/false as C-style TRUE/FALSE
+            if(warmStart==true)
+            {
+                settings->warm_starting = 1;
+            }
+            else{
+                settings->warm_starting = 0;
+            }
+            exitflag = osqp_update_settings(solver.get(), settings.get());
+            return exitflag;
+        }
+
 
         private:
 
@@ -432,6 +486,7 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             //TODO: Implement positive definiteness check (Too lazy to do now...)
             return true;
         }
+
 
         //! @brief  Converts Hessian matrix to CSC (Compressed Sparse Column) format
         //! @param[in] Pmat <N_VARSxN_VARS> square matrix in ArcsMat type

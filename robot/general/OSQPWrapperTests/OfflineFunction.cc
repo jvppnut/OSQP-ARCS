@@ -180,6 +180,25 @@ int main(void){
 	status = testSolver.getSolverStatus();
 	printSolverStatus(status);
 
+	/* -------- SETTINGS CHANGE TEST ------------*/
+	OSQPFloat newAbsTol = 5e-06;
+	OSQPFloat newRelTol = 5e-06;
+	OSQPInt newMaxIterations = 2000;
+
+	exitflag = testSolver.setAbsTolerance(newAbsTol);
+	exitflag = testSolver.setRelTolerance(newRelTol);
+	exitflag = testSolver.setMaxIterations(newMaxIterations);
+
+	exitflag = testSolver.solve(solution);
+	solVector.LoadArray(solution);
+	printf("Exitflag: %lld \n",exitflag);
+	disp(solVector);
+
+	status = testSolver.getSolverStatus();
+	printSolverStatus(status);
+
+
+
 
 	// ここにオフライン計算のコードを記述
 	
