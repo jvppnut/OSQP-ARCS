@@ -1,15 +1,16 @@
-//! @file OSQP_Solver.cc
-//! @brief C++ ARCS wrapper for OSQP solver (Template class)
+//! @file LinearMPC.cc
+//! @brief Linear MPC implementation class
 //!
-//! C++ wrapper for using OSQP solver on ARCS
+//! Linear MPC based on OSQP solver 
 //!
-//! @date 2024/9/9
+//! @date 2024/9/21
 //! @author Juan Padron
 //
 // Copyright (C) 2011-2024 Yokokura, Yuki
 // MIT License. For details, see the LICENSE file.
 
 
-#include "OSQP_Solver.hh"
+
+#include "LinearMPC.hh"
 
 
