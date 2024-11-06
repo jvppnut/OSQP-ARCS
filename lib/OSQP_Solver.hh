@@ -77,6 +77,29 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
 
         public:
 
+        
+        //! @brief OSQP_Solver class empty constructor
+        OSQP_Solver():
+            solver(nullptr, OSQPSolver_deleter),
+            settings(nullptr, OSQPSettings_deleter),
+            P(nullptr, OSQPCscMatrix_deleter),
+            A(nullptr, OSQPCscMatrix_deleter),
+            q(),
+            l(),
+            u(),
+            P_elements(),
+            P_rows(),
+            P_cols(),
+            P_nnz(0),
+            A_elements(),
+            A_rows(),
+            A_cols(),
+            A_nnz(0)
+        {
+
+
+        }
+
 
 
 
