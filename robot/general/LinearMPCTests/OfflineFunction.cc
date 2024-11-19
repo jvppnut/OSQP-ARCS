@@ -20,6 +20,7 @@
 #include <complex>
 #include <array>
 
+
 // 追加のARCSライブラリをここに記述
 #include "ArcsMatrix.hh"
 #include "CsvManipulator.hh"
@@ -34,12 +35,19 @@ int main(void){
 	printf("ARCS OFFLINE CALCULATION MODE\n");
 	printf("Linear MPC tests \n");
 
+
+
+
+
+
+
 	constexpr size_t p_hor = 5;
 	constexpr size_t c_hor = 3;
 	constexpr size_t n_states = 2;
-	constexpr size_t m_inputs = 1;
+	// constexpr size_t m_inputs = 1;
+	constexpr size_t m_inputs = 2;
 	constexpr size_t g_outputs = 1;
-	constexpr bool constraint_inputrates = true;
+	constexpr bool constraint_inputrates = false;
 	constexpr bool constraint_outputs = false;
 
 	ArcsMat<n_states,n_states> A;
@@ -51,38 +59,42 @@ int main(void){
 	double w_du = 0.05;
 	auto identTest = 0.5*eye<3,3>();
 
+
 	// disp(identTest);
 	// disp(identTest^i);
 	A.Set(0.5, 0,
 		  0.2, 1);
 
-	B.Set(0.3,
-			0);
+	// B.Set(0.3,
+	// 		0);
+
+		B.Set(0.3, 0.4,
+			0.7, 0.0);
 
 	C.Set(1, 0);
 
-	ArcsMat<n_states,1> x0 = {0,
-							  0};
 
-	ArcsMat<m_inputs,1> u_z1 = {0};
+	ArcsMat<n_states,1> x0 = {1,
+							  3};
+
+	// ArcsMat<m_inputs,1> u_z1 = {0};
+
+	ArcsMat<m_inputs,1> u_z1 = {2,
+								3};
+
+	// ArcsMat<m_inputs,1> u_max = {10};
+	 ArcsMat<m_inputs,1> u_max = {10,
+	 							  20};
+	ArcsMat<m_inputs,1> u_min = -u_max;
+
+		 ArcsMat<m_inputs,1> du_max = {500,
+	 							  1000};
+	ArcsMat<m_inputs,1> du_min = -du_max;
+
+	ArcsMat<g_outputs,1> y_max = {333};
+	ArcsMat<g_outputs,1> y_min = -y_max;
 
 	ArcsMat<g_outputs*p_hor,1> Y_REF = ones<g_outputs*p_hor,1>();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	// ArcsMat<p_hor+1, 2> AbarTest;	
 /*
@@ -96,16 +108,21 @@ int main(void){
 	*/
 
 
-	LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,constraint_inputrates,constraint_outputs> mpcNoConstraintsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF);
+
+
+
+	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,constraint_inputrates,constraint_outputs> mpcNoConstraintsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,true, false> mpcRatesTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, du_min, du_max);
+	LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,false, true> mpcOutputsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, y_min, y_max);
 	/*
 	LinearMPC<2,1,5,3,true,0> mpcNoConstraintsTest(A,B);
 	LinearMPC<2,1,5,3,true,2> mpcWithConstraintsTest(A,B);
 	LinearMPC<2,1,5,3,true,0> mpcNoConstraintsTestAgain(A,B);
 	*/
 	// ここにオフライン計算のコードを記述	
+	// mpcNoConstraintsTest.testPrintMatrix();
+	mpcOutputsTest.testPrintMatrix();
 	return EXIT_SUCCESS;	// 正常終了
-
-
 		
 }
 

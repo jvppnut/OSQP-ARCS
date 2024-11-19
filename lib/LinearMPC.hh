@@ -40,122 +40,12 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 
-		// //Constructor
-		// LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du):
-		// P_mat(),
-		// A_mat(),
-		// q_vec(),
-		// l_vec(),
-		// u_vec(),
-		// q1(),
-		// q2(),
-		// q3(),
-		// mpcSolver()
-		// {
-
-		// 	printf("Testing: Entering constructor \n");
 
 
-		// 	//BUILD P matrix -----------------
-
-		// 	auto WU = w_u*eye<M_INPUTS*P_HOR,M_INPUTS*P_HOR>();
-		// 	auto WY = w_y*eye<G_OUTPUTS*(P_HOR+1), G_OUTPUTS*(P_HOR+1)>();
-		// 	auto WDU = w_du*eye<M_INPUTS*P_HOR,M_INPUTS*P_HOR>();
-
-		// 	ArcsMat<G_OUTPUTS*(P_HOR+1),N_STATES> ABAR;
-		// 	ArcsMat<G_OUTPUTS,N_STATES> tempMat;
-		// 	for(size_t i = 0; i <= P_HOR; i++){
-		// 		tempMat = C*(A^i);		
-		// 		setsubmatrix(ABAR, tempMat, G_OUTPUTS*i+1,1);
-		// 	}
-		// 	disp(ABAR);
-
-		// 	ArcsMat<G_OUTPUTS*(P_HOR+1),M_INPUTS*P_HOR> BBAR;
-		// 	ArcsMat<G_OUTPUTS,M_INPUTS> tempMat2;
-		// 	for(size_t i = 1; i <= P_HOR; i++){
-		// 		for(size_t j = 0; j <= i-1; j++){
-		// 			tempMat2 = C*(A^(i-1-j))*B;
-		// 			setsubmatrix(BBAR, tempMat2, G_OUTPUTS*i + 1, M_INPUTS*j + 1);
-		// 		}
-		// 	}
-		// 	disp(BBAR);
-
-		// 	ArcsMat<P_HOR,C_HOR> Tbar;
-		// 	setsubmatrix(Tbar, eye<C_HOR,C_HOR>(), 1, 1);
-		// 	setsubmatrix(Tbar, ones<P_HOR-C_HOR,1>(), 1+C_HOR, C_HOR);
-		// 	disp(Tbar);
-		// 	ArcsMat<M_INPUTS*P_HOR,M_INPUTS*C_HOR> TBM;
-		// 	Kron(Tbar,eye<M_INPUTS,M_INPUTS>(),TBM);
-		// 	disp(TBM);
-
-		// 	ArcsMat<M_INPUTS*P_HOR,M_INPUTS*P_HOR> D_DU;
-		// 	auto d_DU = eye<P_HOR,P_HOR>();
-		// 	for(size_t i=2; i<=P_HOR; i++){
-		// 		d_DU(i,i-1) = -1.0;
-		// 	}
-		// 	Kron(d_DU, eye<M_INPUTS,M_INPUTS>(), D_DU);			
-		// 	disp(d_DU);
-		// 	disp(D_DU);
-
-		// 	auto DBAR_DU = D_DU*TBM;
-		// 	auto BBBAR = BBAR*TBM;
-		// 	disp(DBAR_DU);
-		// 	disp(BBBAR);
-
-		// 	auto Q = tp(BBBAR)*WY*BBBAR + tp(DBAR_DU)*WDU*DBAR_DU + tp(TBM)*WU*TBM;
-		// 	disp(Q);
-
-		// 	setsubmatrix(P_mat, Q, 1, 1);
-		// 	P_mat(M_INPUTS*C_HOR+1,M_INPUTS*C_HOR+1) = SLACK_EPS;
-		// 	disp(P_mat);
-
-
-		// 	//BUILD partial q vector -----------------
-
-		// 	q1 = tp(ABAR)*WY*BBBAR;
-		// 	q2 = WY*BBBAR;
-		// 	q3 = WDU*DBAR_DU;
-
-		// 	disp(q1);
-		// 	disp(q2);
-		// 	disp(q3);
-
-
-		// 	//BUILD A matrix -----------------
-		//     setsubmatrix(A_mat, eye<M_INPUTS*C_HOR,M_INPUTS*C_HOR>(),1,1);	//Input constraints
-		// 	disp(A_mat);
-
-		// 	// ArcsMat<M_INPUTS*C_HOR,M_INPUTS*C_HOR> D_DU_ineq;
-		// 	//D_DU_ineq = getsubmatrix(D_DU,M_INPUTS*C_HOR, M_INPUTS*C_HOR);
-		// 	//getsubmatrix(D_DU,D_DU_ineq,M_INPUTS*C_HOR, M_INPUTS*C_HOR);
-		// 	// disp(D_DU);
-		// 	// disp(D_DU_ineq);
-		// 	// disp(( getsubmatrix<M_INPUTS*C_HOR,M_INPUTS*C_HOR>(D_DU,1,1) ));
-
-		// 	if(CONSTRAINT_INPUTRATES){
-		// 		auto D_DU_ineq = getsubmatrix<M_INPUTS*C_HOR,M_INPUTS*C_HOR>(D_DU,1,1);
-		// 		setsubmatrix(A_mat, D_DU_ineq,M_INPUTS*C_HOR+1,1); //Input rate constraints
-		// 		disp(D_DU_ineq);				
-		// 		disp(A_mat);
-		// 	}
-
-
-
-		// 	A_mat(constraintsSize(),M_INPUTS*C_HOR+1) = 1;
-
-		// 	disp(A_mat);
-			
-
-			
-	
-
-			
-		// }
-
-
-
-		//Constructor
-		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du, ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF):
+		//Main constructor
+		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du,
+		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
+		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max):
 		P_mat(),
 		A_mat(),
 		q_vec(),
@@ -167,6 +57,13 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		{
 
 			printf("Testing: Entering constructor \n");
+
+
+
+
+			arcs_assert(w_u > 0);
+			arcs_assert(w_du > 0);
+			arcs_assert(w_y > 0);
 
 
 			//------------ P matrix -----------------
@@ -195,36 +92,188 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			
 			//------------ q vector -----------------
 			
+			//TODO: Fix submatrix sizes
 			ArcsMat<M_INPUTS*P_HOR,1> b0;
 			setsubmatrix(b0, u_z1, 1, 1);
 			q_vec_r1 = -2*tp(CBAR)*tp(QY_pre);
 			q_vec_r2 = -2*tp(D_DU)*tp(QDU);	
 			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
-			setsubmatrix(q_vec, q_vec_r2*b0, 1, 1);
+			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
 
 			disp(q_vec);
 
 
 			//-----------A matrix ---------------
+
+			//--- Dynamic constraints
+			ArcsMat<P_HOR*N_STATES,P_HOR*(N_STATES+M_INPUTS)+1> M_DYN;
+			ArcsMat<P_HOR*N_STATES,1> l_DYN;
 			ArcsMat<P_HOR,P_HOR> dyn_base = zeros<P_HOR,P_HOR>();
 			for(size_t i=2; i<=P_HOR; i++){
 				dyn_base(i,i-1) = -1.0;
 			}
 			auto Mx_DYN = Kron(eye<P_HOR,P_HOR>(),eye<N_STATES,N_STATES>()) + Kron(dyn_base,A);
 			auto Mu_DYN = Kron(-eye<P_HOR,P_HOR>(),B);
-			auto Meps_DYN = zeros<N_STATES*P_HOR,1>();
-
-			ArcsMat<P_HOR*N_STATES,P_HOR*(N_STATES+M_INPUTS)+1> M_DYN;
-			setsubmatrix(M_DYN, Mx_DYN, 1, 1);
-			setsubmatrix(M_DYN, Mu_DYN, P_HOR*N_STATES+1, 1);
-			setsubmatrix(M_DYN, Meps_DYN, P_HOR*(N_STATES+M_INPUTS)+1, 1);
-			disp(M_DYN);
-
 			
-	
+			setsubmatrix(M_DYN, Mx_DYN, 1, 1);
+			setsubmatrix(M_DYN, Mu_DYN, 1, P_HOR*N_STATES+1);			
+			setsubmatrix(l_DYN, A*x0, 1, 1);
+		
 
+			//--- Input constraints
+			ArcsMat<P_HOR*M_INPUTS,P_HOR*(N_STATES+M_INPUTS)+1> M_U;	
+			auto Mu_U = eye<P_HOR*M_INPUTS,P_HOR*M_INPUTS>();
+
+			setsubmatrix(M_U, Mu_U, 1, P_HOR*N_STATES+1);
+			auto l_U = Kron(ones<P_HOR,1>(),u_min);
+			auto u_U = Kron(ones<P_HOR,1>(),u_max);
+
+
+			//-- Control horizon constraint (in the case that input rate constraints are not enabled)
+
+			/*TODO: Blocking movements should be implemented by direct substitution (condensed formulation)
+				 in order to reduce the number of variables to optimize. I was too lazy at the moment so just
+				  implemented it as additional constraints
+			*/
+			if constexpr(P_HOR-C_HOR>0)
+			{
+				if(CONSTRAINT_INPUTRATES == false)
+				{
+
+					ArcsMat<(P_HOR-C_HOR)*M_INPUTS,P_HOR*(N_STATES+M_INPUTS)+1> M_CHOR;	
+					ArcsMat<(P_HOR-C_HOR)*M_INPUTS,1> l_CHOR;
+
+					ArcsMat<P_HOR-C_HOR,P_HOR+1-C_HOR> block_base;
+					for(size_t i=1; i<=P_HOR-C_HOR; i++)
+					{
+					block_base(i,i) = -1.0;
+					block_base(i,i+1) = 1.0;
+					}
+
+					// disp(block_base);
+					auto block_mat = Kron(block_base,eye<M_INPUTS,M_INPUTS>());
+					setsubmatrix(M_CHOR, block_mat, 1, 1 + P_HOR*N_STATES + (C_HOR-1)*M_INPUTS);
+					disp(block_mat);
+					disp(M_CHOR);
+
+					//Stack on constraint matrix A_mat
+					setsubmatrix(A_mat, M_CHOR, 1+P_HOR*(N_STATES+M_INPUTS), 1);
+					disp(A_mat);
+				}
+
+
+			}
+
+			//-----------Stack everything together ---------------
+
+			//Populate constraint matrix A_mat
+			setsubmatrix(A_mat, M_DYN, 1, 1);
+			setsubmatrix(A_mat, M_U, 1+P_HOR*N_STATES, 1);
+			A_mat(constraintsSize(),1+P_HOR*(M_INPUTS+N_STATES)) = 1;
+
+			//Populate lower and upper constraints vectors l_vec and u_vec
+			setsubmatrix(u_vec, l_DYN, 1, 1); 
+			setsubmatrix(u_vec, u_U, 1+P_HOR*N_STATES, 1);
+			u_vec(constraintsSize(),1) = OSQP_INFTY; //Slack variable upper bound (infinity)
+
+			setsubmatrix(l_vec, l_DYN, 1, 1);
+			setsubmatrix(l_vec, l_U, 1+P_HOR*N_STATES, 1);
+			l_vec(constraintsSize(),1) = 0;		//Slack variable lower bound (zero, must be positive)
+
+			disp(A_mat);
+			disp(u_vec);
+			disp(l_vec);
 			
 		}
+
+		void testPrintMatrix(){
+			printf("Test to check what happens to matrices after constructor \n");
+			disp(P_mat);
+			disp(q_vec);
+			disp(l_vec);
+			disp(u_vec);
+			disp(A_mat);
+		}
+
+
+		//Constructor for input rate constraints
+		//Using SFINAE here to enable constructor only and only when input rate constraints
+		// are enabled through template argument CONSTRAINT_INPUTRATES
+		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && !COUTPUTS), size_t> = 0>
+		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
+		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
+		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du,
+		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
+		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max,
+		 ArcsMat<M_INPUTS,1> du_min, ArcsMat<M_INPUTS,1> du_max):
+		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
+		{
+			printf("Testing: Entering constructor for when input rates constraints are activated \n");
+
+			//Call basic constructor
+			// (This doesn't work as it only creates a local copy that is deleted)
+			// Basic constructor needs to be called through constructor delegation as done above
+			// LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+
+			//Stack input rate constraints
+			ArcsMat<M_INPUTS*P_HOR,M_INPUTS*P_HOR> D_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> l_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> u_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> b0;
+			setsubmatrix(b0, u_z1, 1, 1);
+			auto d_DU = eye<P_HOR,P_HOR>();
+			for(size_t i=2; i<=P_HOR; i++){
+				d_DU(i,i-1) = -1.0;
+			}
+			Kron(d_DU, eye<M_INPUTS,M_INPUTS>(), D_DU);		
+			setsubmatrix(A_mat, D_DU, 1+P_HOR*N_STATES + P_HOR*M_INPUTS, P_HOR*N_STATES+1);
+			setsubmatrix(l_DU,	Kron(ones<C_HOR,1>(),du_min)	,1,1);
+			setsubmatrix(u_DU,	Kron(ones<C_HOR,1>(),du_max)	,1,1);	
+
+			setsubmatrix(l_vec,	l_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+			setsubmatrix(u_vec,	u_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+
+		}
+
+
+		//Constructor for output constraints
+		//Using SFINAE here to enable constructor only and only when output constraints
+		// are enabled through template argument CONSTRAINT_INPUTRATES
+		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(!CRATES && COUTPUTS), size_t> = 0>
+		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
+		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
+		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du,
+		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
+		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max,
+		 ArcsMat<G_OUTPUTS,1> y_min, ArcsMat<G_OUTPUTS,1> y_max):
+		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
+		{
+			printf("Testing: Entering constructor for when output constraints are activated \n");
+
+			//Call basic constructor
+			// (This doesn't work as it only creates a local copy that is deleted)
+			// Basic constructor needs to be called through constructor delegation as done above
+			// LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+
+			//Stack input rate constraints
+			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
+
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+
+			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
+			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			
+			setsubmatrix(l_vec,l_Y_top,1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
+			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			
+
+		}
+
 
 		private:
 
@@ -234,13 +283,28 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		//Calculates number of constraints for constraint vectors and matrix computation
 		static constexpr std::size_t constraintsSize() {		
-			std::size_t num_of_constraints = M_INPUTS*C_HOR + 1;	
 
-			if (CONSTRAINT_INPUTRATES==true) {
-				num_of_constraints += M_INPUTS*C_HOR; // Add input rate constraints
+			//Parameter asserts
+			static_assert(P_HOR>0, "LinearMPC: Prediction horizon must be positive");
+			static_assert(C_HOR>0, "LinearMPC: Control horizon must be positive");
+			static_assert(P_HOR-C_HOR>0, "LinearMPC: Control horizon must be smaller than prediction horizon");
+			static_assert(N_STATES>0, "LinearMPC: Number of states must be positive");
+			static_assert(M_INPUTS>0, "LinearMPC: Number of inputs must be positive");
+			static_assert(G_OUTPUTS>0, "LinearMPC: Number of outputs must be positive");
+
+			// std::size_t num_of_constraints = M_INPUTS*C_HOR + 1;	
+			std::size_t num_of_constraints = P_HOR*(N_STATES + M_INPUTS) + 1;
+
+			if(CONSTRAINT_INPUTRATES==false){
+				num_of_constraints += (P_HOR-C_HOR)*M_INPUTS; //Just for blocking movement constraints
 			}
+			else{
+				num_of_constraints += P_HOR*M_INPUTS; // For blocking movements AND input rate constraints
+			}
+
+
 			if(CONSTRAINT_OUTPUTS==true){
-				num_of_constraints += 2*G_OUTPUTS*(P_HOR+1);
+				num_of_constraints += 2*P_HOR*G_OUTPUTS;
 			}
 
 			return num_of_constraints;
@@ -252,7 +316,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1> P_mat;
-		ArcsMat<constraintsSize(),M_INPUTS*C_HOR+1> A_mat;
+		ArcsMat<constraintsSize(),P_HOR*(N_STATES+M_INPUTS)+1> A_mat;
 		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,1> q_vec;
 		ArcsMat<constraintsSize(),1> l_vec;
 		ArcsMat<constraintsSize(),1> u_vec;		
