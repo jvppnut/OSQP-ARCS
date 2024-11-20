@@ -396,6 +396,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		//Start OSQP solver with computed P, A matrices and q, l, u vectors
 		void initializeSolver()
 		{
+			
 
 		}
 

@@ -128,7 +128,19 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             A_nnz(0)
         {
 
+            initializeSolver(Pmat, Amat, qVec, lVec, uVec);
+        }
 
+        
+        //! @brief OSQP_Solver class destructor
+        ~OSQP_Solver(void)
+        {
+            printf("OSQP_Solver instantiation destroyed \n");
+        }
+
+        void initializeSolver(const ArcsMat<N_VARS,N_VARS>& Pmat, const ArcsMat<M_CONSTRAINTS,N_VARS>& Amat, const ArcsMat<N_VARS,1>& qVec, const ArcsMat<M_CONSTRAINTS,1>& lVec, const ArcsMat<M_CONSTRAINTS,1>& uVec)
+        {
+            
             OSQPInt exitflag;
 
             //Checks if P is symmetric and positive definite
@@ -183,18 +195,7 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             testPrintCscVectors(A_elements,A_rows,A_cols,A_nnz);
             */
             
-            printf("OSQP_Solver instantiation created \n");
-        }
-
-        
-
-
-
-
-        //! @brief OSQP_Solver class destructor
-        ~OSQP_Solver(void)
-        {
-            printf("OSQP_Solver instantiation destroyed \n");
+            // printf("OSQP_Solver instantiation created \n");
         }
 
         //! @brief  Minimizes 0.5*x'*P*x + q'*x subject to constraint l <= Ax <= u

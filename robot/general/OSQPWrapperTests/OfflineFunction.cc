@@ -199,6 +199,15 @@ int main(void){
 
 
 
+	/* -------- Test with empty constructor first ------------*/
+	OSQP_Solver<2,3> testSolver2;
+	//testSolver2 = OSQP_Solver<2,3>(P,A,q,l,u); //Doesn't work, maybe need to define what assignment operator does
+	testSolver2.initializeSolver(P,A,q,l,u);
+	exitflag = testSolver2.solve(solution);
+	solVector.LoadArray(solution);
+	printf("Exitflag: %lld \n",exitflag);
+	disp(solVector);
+
 
 	// ここにオフライン計算のコードを記述
 	
