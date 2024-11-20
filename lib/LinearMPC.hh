@@ -53,6 +53,9 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		u_vec(),
 		q_vec_r1(),
 		q_vec_r2(),
+		A_stored(),
+		du_min_stored(),
+		du_max_stored(),
 		mpcSolver()
 		{
 
@@ -64,6 +67,10 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			arcs_assert(w_u > 0);
 			arcs_assert(w_du > 0);
 			arcs_assert(w_y > 0);
+
+
+			//Some necessary storage
+			A_stored = A;
 
 
 			//------------ P matrix -----------------
@@ -193,6 +200,9 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			disp(l_vec);
 			disp(u_vec);
 			disp(A_mat);
+			disp(A_stored);
+			disp(du_min_stored);
+			disp(du_max_stored);
 		}
 
 
@@ -214,6 +224,12 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			// (This doesn't work as it only creates a local copy that is deleted)
 			// Basic constructor needs to be called through constructor delegation as done above
 			// LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+
+
+			
+			//Some necessary storage
+			du_min_stored = du_min;
+			du_max_stored = du_max;
 
 			//Stack input rate constraints
 			ArcsMat<M_INPUTS*P_HOR,M_INPUTS*P_HOR> D_DU;
@@ -250,12 +266,14 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		{
 			printf("Testing: Entering constructor for when output constraints are activated \n");
 
+
+
 			//Call basic constructor
 			// (This doesn't work as it only creates a local copy that is deleted)
 			// Basic constructor needs to be called through constructor delegation as done above
 			// LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
 
-			//Stack input rate constraints
+			//Stack output constraints
 			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
@@ -275,11 +293,76 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		}
 
 
+		//Constructor for input rate AND output constraints
+		//Using SFINAE here to enable constructor only and only when input rate AND output constraints
+		// are enabled through template argument CONSTRAINT_INPUTRATES and CONSTRAINT_OUTPUTS
+		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && COUTPUTS), size_t> = 0>
+		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
+		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
+		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C,
+		 double w_u, double w_y, double w_du,
+		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
+		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max,
+		 ArcsMat<M_INPUTS,1> du_min, ArcsMat<M_INPUTS,1> du_max,
+		 ArcsMat<G_OUTPUTS,1> y_min, ArcsMat<G_OUTPUTS,1> y_max):
+		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
+		{
+			printf("Testing: Entering constructor for when input rate and output constraints are activated \n");
+
+			//TODO: I could have skipped the input rate constraints definition and reduce the amount of code by just
+			//invoking the constructor specialized for input rate constraints.
+			//However, the input rate constraints-only constructor is disabled inside this condition
+			// (because both constraint bool flags are activated)
+			//Maybe we should just remove SFINAE?
+
+			//----------- Input rate constraints ---------------
+			
+			//Some necessary storage
+			du_min_stored = du_min;
+			du_max_stored = du_max;
+
+			//Stack input rate constraints
+			ArcsMat<M_INPUTS*P_HOR,M_INPUTS*P_HOR> D_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> l_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> u_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> b0;
+			setsubmatrix(b0, u_z1, 1, 1);
+			auto d_DU = eye<P_HOR,P_HOR>();
+			for(size_t i=2; i<=P_HOR; i++){
+				d_DU(i,i-1) = -1.0;
+			}
+			Kron(d_DU, eye<M_INPUTS,M_INPUTS>(), D_DU);		
+			setsubmatrix(A_mat, D_DU, 1+P_HOR*N_STATES + P_HOR*M_INPUTS, P_HOR*N_STATES+1);
+			setsubmatrix(l_DU,	Kron(ones<C_HOR,1>(),du_min)	,1,1);
+			setsubmatrix(u_DU,	Kron(ones<C_HOR,1>(),du_max)	,1,1);	
+
+			setsubmatrix(l_vec,	l_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+			setsubmatrix(u_vec,	u_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+
+			//----------- Output constraints ---------------
+
+			//Stack output constraints
+			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
+
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+
+			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
+			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			
+			setsubmatrix(l_vec,l_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
+			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			
+
+		}
+
+
+
 		private:
-
-
-
-
 
 		//Calculates number of constraints for constraint vectors and matrix computation
 		static constexpr std::size_t constraintsSize() {		
@@ -323,8 +406,15 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		ArcsMat<P_HOR*N_STATES, P_HOR*G_OUTPUTS> q_vec_r1;
 		ArcsMat<P_HOR*M_INPUTS, P_HOR*M_INPUTS> q_vec_r2;
 
-
+		//TODO: du_min and du_max should be conditionally declared only when input rate constraints are enabled
+		//Unfortunately I haven't figured how to do this using SFINAE or some other approach
+		ArcsMat<N_STATES,N_STATES> A_stored;
+		ArcsMat<M_INPUTS,1> du_min_stored;
+		ArcsMat<M_INPUTS,1> du_max_stored;
 		OSQP_Solver<M_INPUTS*C_HOR+1,constraintsSize()> mpcSolver;
+
+
+
     };
 
 

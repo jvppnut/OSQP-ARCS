@@ -108,12 +108,10 @@ int main(void){
 	*/
 
 
-
-
-
-	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,constraint_inputrates,constraint_outputs> mpcNoConstraintsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,false,false> mpcNoConstraintsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
 	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,true, false> mpcRatesTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, du_min, du_max);
-	LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,false, true> mpcOutputsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, y_min, y_max);
+	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,false, true> mpcOutputsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, y_min, y_max);
+	LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,true, true> mpcAllConstraintsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, du_min, du_max, y_min, y_max);
 	/*
 	LinearMPC<2,1,5,3,true,0> mpcNoConstraintsTest(A,B);
 	LinearMPC<2,1,5,3,true,2> mpcWithConstraintsTest(A,B);
@@ -121,8 +119,15 @@ int main(void){
 	*/
 	// ここにオフライン計算のコードを記述	
 	// mpcNoConstraintsTest.testPrintMatrix();
-	mpcOutputsTest.testPrintMatrix();
+	// mpcRatesTest.testPrintMatrix();
+	// mpcOutputsTest.testPrintMatrix();
+	mpcAllConstraintsTest.testPrintMatrix();
 	return EXIT_SUCCESS;	// 正常終了
+
+
+
+
+
 		
 }
 
