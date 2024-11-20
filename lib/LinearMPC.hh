@@ -42,7 +42,8 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 
-		//Main constructor
+		//Main constructor, initializes all parts of the optimization problem that are independent of 
+		//the constraint selection flags (independent of CONSTRAINT_INPUTRATES and CONSTRAINT_OUTPUTS)
 		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du,
 		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
 		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max):
@@ -93,7 +94,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(P_mat, QY, 1, 1);
 			setsubmatrix(P_mat, QU+QDU, 1+P_HOR*N_STATES, 1+P_HOR*N_STATES);
 			P_mat(P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1) = SLACK_EPS;
-			disp(P_mat);
+			// disp(P_mat);
 
 
 			
@@ -107,7 +108,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
 			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
 
-			disp(q_vec);
+			// disp(q_vec);
 
 
 			//-----------A matrix ---------------
@@ -160,12 +161,12 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 					// disp(block_base);
 					auto block_mat = Kron(block_base,eye<M_INPUTS,M_INPUTS>());
 					setsubmatrix(M_CHOR, block_mat, 1, 1 + P_HOR*N_STATES + (C_HOR-1)*M_INPUTS);
-					disp(block_mat);
-					disp(M_CHOR);
+					// disp(block_mat);
+					// disp(M_CHOR);
 
 					//Stack on constraint matrix A_mat
 					setsubmatrix(A_mat, M_CHOR, 1+P_HOR*(N_STATES+M_INPUTS), 1);
-					disp(A_mat);
+					// disp(A_mat);
 				}
 
 
@@ -187,22 +188,10 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(l_vec, l_U, 1+P_HOR*N_STATES, 1);
 			l_vec(constraintsSize(),1) = 0;		//Slack variable lower bound (zero, must be positive)
 
-			disp(A_mat);
-			disp(u_vec);
-			disp(l_vec);
+			// disp(A_mat);
+			// disp(u_vec);
+			// disp(l_vec);
 			
-		}
-
-		void testPrintMatrix(){
-			printf("Test to check what happens to matrices after constructor \n");
-			disp(P_mat);
-			disp(q_vec);
-			disp(l_vec);
-			disp(u_vec);
-			disp(A_mat);
-			disp(A_stored);
-			disp(du_min_stored);
-			disp(du_max_stored);
 		}
 
 
@@ -355,14 +344,67 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
 			
 			setsubmatrix(l_vec,l_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
-			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);			
+
+		}
+
+		//TODO: Will delete soon
+		void checkMatrices(){
+			printf("Test to check what happens to matrices after constructor \n");
+			disp(P_mat);
+			disp(q_vec);
+			disp(l_vec);
+			disp(u_vec);
+			disp(A_mat);
+			disp(A_stored);
+			disp(du_min_stored);
+			disp(du_max_stored);
+		}
+
+		void update(ArcsMat<P_HOR*G_OUTPUTS,1> Y_REF, ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1){
+
+			//------------ update q vector -----------------
 			
+		
+			ArcsMat<M_INPUTS*P_HOR,1> b0;
+			setsubmatrix(b0, u_z1, 1, 1);
+			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
+			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
+
+
+			//----------- update l and u vectors ----------
+
+			//Dynamics constraints
+			ArcsMat<N_STATES,1> x0_computed = A_stored*x0;
+			setsubmatrix(u_vec, x0_computed, 1, 1);
+			setsubmatrix(l_vec, x0_computed, 1, 1);
+
+			//Input rate constraints (if any)
+			if constexpr(CONSTRAINT_INPUTRATES)
+			{
+				setsubmatrix(u_vec, du_max_stored + u_z1, 1+P_HOR*N_STATES + P_HOR*M_INPUTS, 1);
+				setsubmatrix(l_vec, du_min_stored + u_z1, 1+P_HOR*N_STATES + P_HOR*M_INPUTS, 1);
+			}
+
+			//Update OSQP solver with new vectors
 
 		}
 
 
-
 		private:
+
+		//Start OSQP solver with computed P, A matrices and q, l, u vectors
+		void initializeSolver()
+		{
+
+		}
+
+
+		//Start OSQP solver with computed P, A matrices and q, l, u vectors
+		void solve()
+		{
+
+		}
 
 		//Calculates number of constraints for constraint vectors and matrix computation
 		static constexpr std::size_t constraintsSize() {		

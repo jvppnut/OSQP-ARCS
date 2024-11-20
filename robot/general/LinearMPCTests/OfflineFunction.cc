@@ -60,6 +60,7 @@ int main(void){
 	auto identTest = 0.5*eye<3,3>();
 
 
+
 	// disp(identTest);
 	// disp(identTest^i);
 	A.Set(0.5, 0,
@@ -118,14 +119,16 @@ int main(void){
 	LinearMPC<2,1,5,3,true,0> mpcNoConstraintsTestAgain(A,B);
 	*/
 	// ここにオフライン計算のコードを記述	
-	// mpcNoConstraintsTest.testPrintMatrix();
-	// mpcRatesTest.testPrintMatrix();
-	// mpcOutputsTest.testPrintMatrix();
-	mpcAllConstraintsTest.testPrintMatrix();
+	// mpcNoConstraintsTest.checkMatrices();
+	// mpcRatesTest.checkMatrices();
+	// mpcOutputsTest.checkMatrices();
+	mpcAllConstraintsTest.checkMatrices();
+
+	mpcAllConstraintsTest.update(2.0*Y_REF, 0.5*x0, 0.5*u_z1);
+	// mpcAllConstraintsTest.update(Y_REF, x0, u_z1);
+	mpcAllConstraintsTest.checkMatrices();
+
 	return EXIT_SUCCESS;	// 正常終了
-
-
-
 
 
 		
