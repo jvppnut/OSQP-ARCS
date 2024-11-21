@@ -37,16 +37,12 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		public:
 
-
-
-
-
-
 		//Main constructor, initializes all parts of the optimization problem that are independent of 
 		//the constraint selection flags (independent of CONSTRAINT_INPUTRATES and CONSTRAINT_OUTPUTS)
-		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du,
-		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
-		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max):
+		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max):
 		P_mat(),
 		A_mat(),
 		q_vec(),
@@ -57,7 +53,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		A_stored(),
 		du_min_stored(),
 		du_max_stored(),
-		mpcSolver()
+		qpSolver()
 		{
 
 			printf("Testing: Entering constructor \n");
@@ -191,6 +187,14 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			// disp(A_mat);
 			// disp(u_vec);
 			// disp(l_vec);
+
+			//Initialize solver rightaway if we don't have input rate and output constraints
+			//Else, we have to wait until A_mat and u_vec, l_vec are properly populated with
+			//their corresponding constraints
+			if constexpr(!CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS)
+			{
+				initializeSolver();
+			}
 			
 		}
 
@@ -201,10 +205,11 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && !COUTPUTS), size_t> = 0>
 		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
 		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
-		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du,
-		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
-		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max,
-		 ArcsMat<M_INPUTS,1> du_min, ArcsMat<M_INPUTS,1> du_max):
+		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
+		 const ArcsMat<M_INPUTS,1>& du_min, const ArcsMat<M_INPUTS,1>& du_max):
 		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
 		{
 			printf("Testing: Entering constructor for when input rates constraints are activated \n");
@@ -238,6 +243,9 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(l_vec,	l_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
 			setsubmatrix(u_vec,	u_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
 
+			//Initialize solver
+			initializeSolver();
+
 		}
 
 
@@ -247,10 +255,11 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(!CRATES && COUTPUTS), size_t> = 0>
 		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
 		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
-		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C, double w_u, double w_y, double w_du,
-		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
-		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max,
-		 ArcsMat<G_OUTPUTS,1> y_min, ArcsMat<G_OUTPUTS,1> y_max):
+		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
+		 const ArcsMat<G_OUTPUTS,1>& y_min, const ArcsMat<G_OUTPUTS,1>& y_max):
 		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
 		{
 			printf("Testing: Entering constructor for when output constraints are activated \n");
@@ -278,7 +287,8 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(l_vec,l_Y_top,1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
 			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
 			
-
+			//Initialize solver
+			initializeSolver();
 		}
 
 
@@ -288,12 +298,12 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && COUTPUTS), size_t> = 0>
 		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
 		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
-		LinearMPC(ArcsMat<N_STATES,N_STATES> A, ArcsMat<N_STATES,M_INPUTS> B, ArcsMat<G_OUTPUTS,N_STATES> C,
+		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
-		 ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1, ArcsMat<G_OUTPUTS*P_HOR,1> Y_REF,
-		 ArcsMat<M_INPUTS,1> u_min, ArcsMat<M_INPUTS,1> u_max,
-		 ArcsMat<M_INPUTS,1> du_min, ArcsMat<M_INPUTS,1> du_max,
-		 ArcsMat<G_OUTPUTS,1> y_min, ArcsMat<G_OUTPUTS,1> y_max):
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
+		 const ArcsMat<M_INPUTS,1>& du_min, const ArcsMat<M_INPUTS,1>& du_max,
+		 const ArcsMat<G_OUTPUTS,1>& y_min, const ArcsMat<G_OUTPUTS,1>& y_max):
 		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
 		{
 			printf("Testing: Entering constructor for when input rate and output constraints are activated \n");
@@ -344,7 +354,10 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
 			
 			setsubmatrix(l_vec,l_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
-			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);			
+			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);	
+
+			//Initialize solver
+			initializeSolver();		
 
 		}
 
@@ -361,7 +374,9 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			disp(du_max_stored);
 		}
 
-		void update(ArcsMat<P_HOR*G_OUTPUTS,1> Y_REF, ArcsMat<N_STATES,1> x0, ArcsMat<M_INPUTS,1> u_z1){
+		void update(const ArcsMat<P_HOR*G_OUTPUTS,1>& Y_REF, const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1){
+
+			OSQPInt exitflag = 0;
 
 			//------------ update q vector -----------------
 			
@@ -387,22 +402,25 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			}
 
 			//Update OSQP solver with new vectors
+			exitflag = qpSolver.Update_Vecs(q_vec,l_vec,u_vec);
+			arcs_assert(exitflag==0);
 
 		}
 
 
 		private:
 
-		//Start OSQP solver with computed P, A matrices and q, l, u vectors
+		//Initialize OSQP solver with computed P, A matrices and q, l, u vectors
+		//TODO: Add support for other solvers? (such as qpOASES)
 		void initializeSolver()
 		{
-			
-
+			qpSolver.initializeSolver(P_mat, A_mat, q_vec, l_vec, u_vec);
 		}
 
 
 		//Start OSQP solver with computed P, A matrices and q, l, u vectors
-		void solve()
+		void solve(ArcsMat<P_HOR*M_INPUTS,1>& U_opt, ArcsMat<P_HOR*N_STATES,1> X_predicted,
+		 double& slack_var, OSQP_status& solver_status)
 		{
 
 		}
@@ -454,7 +472,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		ArcsMat<N_STATES,N_STATES> A_stored;
 		ArcsMat<M_INPUTS,1> du_min_stored;
 		ArcsMat<M_INPUTS,1> du_max_stored;
-		OSQP_Solver<M_INPUTS*C_HOR+1,constraintsSize()> mpcSolver;
+		OSQP_Solver<P_HOR*(N_STATES+M_INPUTS)+1,constraintsSize()> qpSolver;
 
 
 

@@ -109,6 +109,8 @@ int main(void){
 	*/
 
 
+
+
 	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,false,false> mpcNoConstraintsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
 	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,true, false> mpcRatesTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, du_min, du_max);
 	// LinearMPC<n_states,m_inputs,g_outputs,p_hor,c_hor,false, true> mpcOutputsTest(A,B,C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max, y_min, y_max);
@@ -127,6 +129,8 @@ int main(void){
 	mpcAllConstraintsTest.update(2.0*Y_REF, 0.5*x0, 0.5*u_z1);
 	// mpcAllConstraintsTest.update(Y_REF, x0, u_z1);
 	mpcAllConstraintsTest.checkMatrices();
+	
+	
 
 	return EXIT_SUCCESS;	// 正常終了
 
