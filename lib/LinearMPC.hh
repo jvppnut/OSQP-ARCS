@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <cmath>
 #include <cassert>
+#include <array>
 #include "ArcsMatrix.hh"
 #include "OSQP_Solver.hh"
 
@@ -61,9 +62,9 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 
-			arcs_assert(w_u > 0);
-			arcs_assert(w_du > 0);
-			arcs_assert(w_y > 0);
+			arcs_assert(w_u >= 0);
+			arcs_assert(w_du >= 0);
+			arcs_assert(w_y >= 0);
 
 
 			//Some necessary storage
@@ -90,6 +91,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(P_mat, QY, 1, 1);
 			setsubmatrix(P_mat, QU+QDU, 1+P_HOR*N_STATES, 1+P_HOR*N_STATES);
 			P_mat(P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1) = SLACK_EPS;
+			P_mat = 2*P_mat;	//To eliminate the default 1/2 multiplier of OSQP solver (is this needed?)
 			// disp(P_mat);
 
 
@@ -100,7 +102,9 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			ArcsMat<M_INPUTS*P_HOR,1> b0;
 			setsubmatrix(b0, u_z1, 1, 1);
 			q_vec_r1 = -2*tp(CBAR)*tp(QY_pre);
-			q_vec_r2 = -2*tp(D_DU)*tp(QDU);	
+			q_vec_r2 = -2*tp(D_DU)*tp(QDU_pre);	
+			disp(D_DU);
+			disp(QDU);
 			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
 			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
 
@@ -273,13 +277,16 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 			//Stack output constraints
 			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y(1);
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
 
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 
 			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
 			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
@@ -342,13 +349,16 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 			//Stack output constraints
 			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y(1);
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
 
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 
 			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
 			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
@@ -374,6 +384,21 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			disp(du_max_stored);
 		}
 
+		void testOutputToMAT(const std::string fileName)
+		{
+			std::string outputString = "LinearMPC: Printing matrices to specified mat file: " + fileName;
+			// printf("LinearMPC: Printing matrices to specified mat file \n");
+			printf("%s \n",outputString.c_str());
+			MatExport MatFile1(fileName);
+			MatFile1.Save("Amat_exp", A_mat);
+			MatFile1.Save("Pmat_exp", P_mat);
+			MatFile1.Save("qvec_exp", q_vec);
+			MatFile1.Save("lvec_exp", l_vec);
+			MatFile1.Save("uvec_exp", u_vec);
+
+		}
+
+
 		void update(const ArcsMat<P_HOR*G_OUTPUTS,1>& Y_REF, const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1){
 
 			OSQPInt exitflag = 0;
@@ -384,6 +409,8 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			ArcsMat<M_INPUTS*P_HOR,1> b0;
 			setsubmatrix(b0, u_z1, 1, 1);
 			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
+			//disp(q_vec_r2*b0);
+			disp(q_vec_r2);
 			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
 
 
@@ -420,8 +447,34 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		//Start OSQP solver with computed P, A matrices and q, l, u vectors
 		void solve(ArcsMat<P_HOR*M_INPUTS,1>& U_opt, ArcsMat<P_HOR*N_STATES,1> X_predicted,
-		 double& slack_var, OSQP_status& solver_status)
+		 double& slack_var, OSQP_Status& solver_status)
 		{
+			std::array<OSQPFloat,P_HOR*(N_STATES+M_INPUTS)+1> solution_array;
+			std::array<OSQPFloat,P_HOR*M_INPUTS> U_array;
+			std::array<OSQPFloat,P_HOR*N_STATES> X_array;			
+			OSQPInt exitflag = 0;
+
+			//Solve quadratic program and verify that a feasible solution was obtained
+			exitflag = qpSolver.solve(solution_array);
+			arcs_assert(exitflag==0);
+
+			//Populate U, X arrays and slack variable
+			for(int i=0; i<P_HOR*N_STATES; i++)
+			{
+				X_array[i] = solution_array[i];
+			}
+			
+			for(int i=P_HOR*N_STATES; i<P_HOR*(N_STATES+M_INPUTS); i++)
+			{
+				U_array[i] = solution_array[i];
+			}
+
+			slack_var = solution_array[P_HOR*(N_STATES+M_INPUTS)];
+
+			//Load arrays into respective matrices and get also solver status
+			U_opt.LoadArray(U_array);
+			X_predicted.LoadArray(X_array);
+			solver_status = qpSolver.getSolverStatus();		
 
 		}
 
@@ -473,8 +526,6 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		ArcsMat<M_INPUTS,1> du_min_stored;
 		ArcsMat<M_INPUTS,1> du_max_stored;
 		OSQP_Solver<P_HOR*(N_STATES+M_INPUTS)+1,constraintsSize()> qpSolver;
-
-
 
     };
 

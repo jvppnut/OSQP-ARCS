@@ -67,6 +67,8 @@ int main(void){
 	OSQP_Status status;	//Solver status
 	ArcsMat<2,1> solVector;	
 
+
+
 	/* -------- SOLVE TEST ------------*/
 	ArcsMat<2,2> P = {			// 宣言と同時に値をセットする場合
 		4, 1,

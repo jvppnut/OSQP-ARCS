@@ -35,6 +35,9 @@
 DATA.csv
 EventLog.txt
 
+#MATLAB files
+*.mat
+
 # 公開リポジトリで共有するrobot配下のディレクトリ
 # 下記で列挙されているロボット以外は非公開
 /robot/*
