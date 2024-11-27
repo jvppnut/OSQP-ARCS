@@ -26,6 +26,7 @@
 #include "CsvManipulator.hh"
 #include "ArcsControl.hh"
 #include "LinearMPC.hh"
+#include "OSQP_Solver.hh"
 
 
 using namespace ARCS;
@@ -164,7 +165,6 @@ int main(void){
 	constexpr size_t phor_ex1 = 20;
 	constexpr size_t chor_ex1 = 4;
 
-
 	ArcsMat<n_ex1,n_ex1> Ad_ex1;
 	ArcsMat<n_ex1,m_ex1> Bd_ex1;
 	ArcsMat<n_ex1,n_ex1> A_ex1 = {-Dm/Jm, 0,
@@ -184,13 +184,12 @@ int main(void){
 	// disp(B_ex1);
 
 
-
 	ArcsMat<m_ex1,1> umax_ex1 = {u1c_ex1};
 	ArcsMat<m_ex1,1> umin_ex1 = -umax_ex1;
 	ArcsMat<m_ex1,1> dumax_ex1 = {du1c_ex1};
 	ArcsMat<m_ex1,1> dumin_ex1 = -dumax_ex1;
-	ArcsMat<g_outputs,1> ymax_ex1 = {y1c_ex1};
-	ArcsMat<g_outputs,1> ymin_ex1 = -ymax_ex1;
+	ArcsMat<g_ex1,1> ymax_ex1 = {y1c_ex1};
+	ArcsMat<g_ex1,1> ymin_ex1 = -ymax_ex1;
 
 	LinearMPC<n_ex1,m_ex1,g_ex1,phor_ex1,chor_ex1,true, true> mpc_ex1(Ad_ex1,Bd_ex1,C_ex1,
 	 wU_ex1, wY_ex1, wDU_ex1, x0_ex1, uz1_ex1, YREF_ex1, 
@@ -201,18 +200,113 @@ int main(void){
 	//Test now with non-equal-to-zero x0, uz1 and y_ref
 	x0_ex1.Set(1.2, 
 				0.11);
-
 	uz1_ex1.Set(1.6);
-
 	YREF_ex1.FillAll(0.15*M_PI);
 
-
-
-
 	mpc_ex1.update(YREF_ex1, x0_ex1, uz1_ex1);
-
 	mpc_ex1.testOutputToMAT("ex2.mat");
 
+	// --------------- EXAMPLE 2 - 1 mass (inertia) control test -------
+	constexpr double Ts_ex2 = 0.01; //1 ms
+	constexpr double Tsim_ex2 = 20; //20 secs
+	constexpr int imax_ex2 = Tsim_ex2/Ts_ex2; 
+	constexpr double u1c_ex2 = 5.0;  //Input constraint i.e. current limit
+	constexpr double du1c_ex2 = 10000.0; //Input rate of change constraint
+	constexpr double y1c_ex2 = 0.201*M_PI; //State x2 constraint: Angular position.
+	constexpr size_t n_ex2= 2; //Dimension of state vector: We only have x1: ang. velocity and x2: ang. position
+	constexpr size_t m_ex2 = 1; //Dimension of input vector: we only have input current
+	constexpr size_t g_ex2 = 1; //Dimension of output vector
+	constexpr double wY_ex2 = 100.0;
+	constexpr double wU_ex2 = 0.0;
+	constexpr double wDU_ex2 = 1.0;
+	constexpr size_t phor_ex2 = 20;
+	constexpr size_t chor_ex2 = 4;
+
+	//---Variables
+	//For storage
+	ArcsMat<imax_ex2,1> t_ex2;
+	ArcsMat<imax_ex2,1> iq_ex2;
+	ArcsMat<imax_ex2,1> theta_ref_ex2;
+	ArcsMat<imax_ex2,1> theta_m_ex2;
+	ArcsMat<imax_ex2,1> omega_m_ex2;
+	ArcsMat<imax_ex2,1> slackvar_ex2;
+	ArcsMat<imax_ex2,1> solruntime_ex2;
+
+	//For control
+	double tsim_ex2 = 0.0;
+	double theta_ref = 0.0;
+	ArcsMat<n_ex2,1> x0_ex2 = {0,
+								0};
+	ArcsMat<m_ex2,1> uz1_ex2 = {0};
+	ArcsMat<g_ex2*phor_ex2,1> YREF_ex2(0);
+	ArcsMat<m_ex2,1> umax_ex2 = {u1c_ex2};
+	ArcsMat<m_ex2,1> umin_ex2 = -umax_ex2;
+	ArcsMat<m_ex2,1> dumax_ex2 = {du1c_ex2};
+	ArcsMat<m_ex2,1> dumin_ex2 = -dumax_ex2;
+	ArcsMat<g_ex2,1> ymax_ex2 = {y1c_ex2};
+	ArcsMat<g_ex2,1> ymin_ex2 = -ymax_ex2;		
+	ArcsMat<n_ex2,1> xnext_ex2;
+	ArcsMat<m_ex2,1> u_ex2;
+	ArcsMat<phor_ex2*m_ex2,1> U_opt;
+	ArcsMat<phor_ex2*n_ex2,1> X_pred;
+	double slackvar = 0.0;
+	OSQP_Status solver_status; 
+	LinearMPC<n_ex2,m_ex2,g_ex2,phor_ex2,chor_ex2,true, true> mpc_ex2(Ad_ex1,Bd_ex1,C_ex1,
+	 wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
+	 umin_ex2, umax_ex2, dumin_ex2, dumax_ex2, ymin_ex2, ymax_ex2);
+
+
+
+
+
+
+	////// Control loop //////////////
+	for(size_t i = 1; i<=imax_ex2; i++)
+	{
+		if(tsim_ex2 >= 2.0)
+		{
+			theta_ref = 0.2*M_PI;
+		}
+
+		YREF_ex2.FillAll(theta_ref);
+		// disp(YREF_ex2);
+		mpc_ex2.update(YREF_ex2, x0_ex2, uz1_ex2);
+		mpc_ex2.solve(U_opt, X_pred, slackvar, solver_status);
+	
+
+		u_ex2 = getsubmatrix<m_ex2,1>(U_opt,1,1);	//Extract optimal solution for present time
+
+		printf("t: %f, u: %f , theta_ref: %f, theta_m: %f, OSQP run time: %f \n",tsim_ex2, u_ex2(1,1), theta_ref, x0_ex2(2,1), solver_status.run_time);
+
+		xnext_ex2 = Ad_ex1*x0_ex2 + Bd_ex1*u_ex2;	//Advance simulation by one time step
+
+		x0_ex2 = xnext_ex2;	//Pass past values
+		uz1_ex2 = u_ex2;
+
+
+		//Store data
+		t_ex2(i,1) = tsim_ex2;
+		iq_ex2(i,1) = u_ex2(1,1);		
+		omega_m_ex2(i,1) = xnext_ex2(1,1);
+		theta_m_ex2(i,1) = xnext_ex2(2,1);
+		theta_ref_ex2(i,1) = theta_ref;
+		slackvar_ex2(i,1) = slackvar;
+		solruntime_ex2(i,1) = solver_status.run_time;
+		
+		tsim_ex2 += Ts_ex2;	//Advance time
+
+	}
+
+	MatExport toMATLAB("mpcControlEx2.mat");
+	toMATLAB.Save("t_vec_exp", t_ex2);
+	toMATLAB.Save("u_vec_exp", iq_ex2);
+	toMATLAB.Save("thetam_vec_exp", theta_m_ex2);
+	toMATLAB.Save("thetaref_vec_exp", theta_ref_ex2);
+	toMATLAB.Save("omegam_vec_exp", omega_m_ex2);
+	toMATLAB.Save("slack_vec_exp", slackvar_ex2);
+	toMATLAB.Save("solruntime_vec_exp", solruntime_ex2);
+
+	 
 
 
 	

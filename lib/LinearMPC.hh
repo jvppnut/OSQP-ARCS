@@ -103,8 +103,8 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(b0, u_z1, 1, 1);
 			q_vec_r1 = -2*tp(CBAR)*tp(QY_pre);
 			q_vec_r2 = -2*tp(D_DU)*tp(QDU_pre);	
-			disp(D_DU);
-			disp(QDU);
+			// disp(D_DU);
+			// disp(QDU);
 			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
 			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
 
@@ -410,7 +410,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			setsubmatrix(b0, u_z1, 1, 1);
 			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
 			//disp(q_vec_r2*b0);
-			disp(q_vec_r2);
+			// disp(q_vec_r2);
 			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
 
 
@@ -434,18 +434,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		}
 
-
-		private:
-
-		//Initialize OSQP solver with computed P, A matrices and q, l, u vectors
-		//TODO: Add support for other solvers? (such as qpOASES)
-		void initializeSolver()
-		{
-			qpSolver.initializeSolver(P_mat, A_mat, q_vec, l_vec, u_vec);
-		}
-
-
-		//Start OSQP solver with computed P, A matrices and q, l, u vectors
+				//Start OSQP solver with computed P, A matrices and q, l, u vectors
 		void solve(ArcsMat<P_HOR*M_INPUTS,1>& U_opt, ArcsMat<P_HOR*N_STATES,1> X_predicted,
 		 double& slack_var, OSQP_Status& solver_status)
 		{
@@ -459,14 +448,14 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			arcs_assert(exitflag==0);
 
 			//Populate U, X arrays and slack variable
-			for(int i=0; i<P_HOR*N_STATES; i++)
+			for(size_t i=0; i<P_HOR*N_STATES; i++)
 			{
 				X_array[i] = solution_array[i];
 			}
 			
-			for(int i=P_HOR*N_STATES; i<P_HOR*(N_STATES+M_INPUTS); i++)
+			for(size_t i=P_HOR*N_STATES; i<P_HOR*(N_STATES+M_INPUTS); i++)
 			{
-				U_array[i] = solution_array[i];
+				U_array[i-P_HOR*N_STATES] = solution_array[i];
 			}
 
 			slack_var = solution_array[P_HOR*(N_STATES+M_INPUTS)];
@@ -477,6 +466,18 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			solver_status = qpSolver.getSolverStatus();		
 
 		}
+
+
+		private:
+
+		//Initialize OSQP solver with computed P, A matrices and q, l, u vectors
+		//TODO: Add support for other solvers? (such as qpOASES)
+		void initializeSolver()
+		{
+			qpSolver.initializeSolver(P_mat, A_mat, q_vec, l_vec, u_vec);
+		}
+
+
 
 		//Calculates number of constraints for constraint vectors and matrix computation
 		static constexpr std::size_t constraintsSize() {		
