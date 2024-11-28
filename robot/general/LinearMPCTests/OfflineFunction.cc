@@ -162,7 +162,7 @@ int main(void){
 	constexpr double wY_ex1 = 100.0;
 	constexpr double wU_ex1 = 0.0;
 	constexpr double wDU_ex1 = 1.0;
-	constexpr size_t phor_ex1 = 20;
+	constexpr size_t phor_ex1 = 60;
 	constexpr size_t chor_ex1 = 4;
 
 	ArcsMat<n_ex1,n_ex1> Ad_ex1;
@@ -212,15 +212,19 @@ int main(void){
 	constexpr int imax_ex2 = Tsim_ex2/Ts_ex2; 
 	constexpr double u1c_ex2 = 5.0;  //Input constraint i.e. current limit
 	constexpr double du1c_ex2 = 10000.0; //Input rate of change constraint
-	constexpr double y1c_ex2 = 0.201*M_PI; //State x2 constraint: Angular position.
+	// constexpr double y1c_ex2 = 0.201*M_PI; //State x2 constraint: Angular position.
+	constexpr double y1c_ex2 = 1.05*M_PI; //State x2 constraint: Angular position.
+	//NOTE: Solver loses feasibility for y1c_ex2 = 1.05*M_PI, yref = M_PI, P_HOR = 20, C_HOR = 4
+	//Gotta check why this occurs (slack variable is supposed to shield us from this!)
 	constexpr size_t n_ex2= 2; //Dimension of state vector: We only have x1: ang. velocity and x2: ang. position
 	constexpr size_t m_ex2 = 1; //Dimension of input vector: we only have input current
 	constexpr size_t g_ex2 = 1; //Dimension of output vector
 	constexpr double wY_ex2 = 100.0;
 	constexpr double wU_ex2 = 0.0;
 	constexpr double wDU_ex2 = 1.0;
-	constexpr size_t phor_ex2 = 20;
+	constexpr size_t phor_ex2 = 30;
 	constexpr size_t chor_ex2 = 4;
+
 
 	//---Variables
 	//For storage
@@ -251,11 +255,20 @@ int main(void){
 	ArcsMat<phor_ex2*n_ex2,1> X_pred;
 	double slackvar = 0.0;
 	OSQP_Status solver_status; 
+	//With input rate and output constraints
 	LinearMPC<n_ex2,m_ex2,g_ex2,phor_ex2,chor_ex2,true, true> mpc_ex2(Ad_ex1,Bd_ex1,C_ex1,
 	 wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
 	 umin_ex2, umax_ex2, dumin_ex2, dumax_ex2, ymin_ex2, ymax_ex2);
 
+	//Without output constraints
+	// LinearMPC<n_ex2,m_ex2,g_ex2,phor_ex2,chor_ex2,true, false> mpc_ex2(Ad_ex1,Bd_ex1,C_ex1,
+	//  wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
+	//  umin_ex2, umax_ex2, dumin_ex2, dumax_ex2);
 
+	//Without input rate and output constraints
+	// LinearMPC<n_ex2,m_ex2,g_ex2,phor_ex2,chor_ex2,false, false> mpc_ex2(Ad_ex1,Bd_ex1,C_ex1,
+	//  wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
+	//  umin_ex2, umax_ex2);
 
 
 
@@ -265,7 +278,8 @@ int main(void){
 	{
 		if(tsim_ex2 >= 2.0)
 		{
-			theta_ref = 0.2*M_PI;
+			// theta_ref = 0.2*M_PI;
+			theta_ref = M_PI;
 		}
 
 		YREF_ex2.FillAll(theta_ref);
@@ -276,7 +290,7 @@ int main(void){
 
 		u_ex2 = getsubmatrix<m_ex2,1>(U_opt,1,1);	//Extract optimal solution for present time
 
-		printf("t: %f, u: %f , theta_ref: %f, theta_m: %f, OSQP run time: %f \n",tsim_ex2, u_ex2(1,1), theta_ref, x0_ex2(2,1), solver_status.run_time);
+		printf("t: %f [s], u: %f [A], theta_ref: %f [rad], theta_m: %f [rad], OSQP run time: %f [us] \n",tsim_ex2, u_ex2(1,1), theta_ref, x0_ex2(2,1), 1e6*solver_status.run_time);
 
 		xnext_ex2 = Ad_ex1*x0_ex2 + Bd_ex1*u_ex2;	//Advance simulation by one time step
 
@@ -305,6 +319,9 @@ int main(void){
 	toMATLAB.Save("omegam_vec_exp", omega_m_ex2);
 	toMATLAB.Save("slack_vec_exp", slackvar_ex2);
 	toMATLAB.Save("solruntime_vec_exp", solruntime_ex2);
+
+	//TODO....
+	// --------------- EXAMPLE 3 - MIMO system test -------
 
 	 
 
