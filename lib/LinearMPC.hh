@@ -1,7 +1,8 @@
 //! @file LinearMPC.cc
 //! @brief Linear MPC implementation class
 //!
-//! Linear MPC based on OSQP solver using sparse formulation
+//! Linear MPC based on OSQP solver using sparse formulation 
+//! (Try to avoid condensed formulation for faster solving speed)
 //!
 //! @date 2024/9/21
 //! @author Juan Padron
@@ -33,13 +34,31 @@
 namespace ARCS{
 using namespace ArcsMatrix;
 
+//! @brief Class for implementing linear MPC with box constraints for LTI systems
+//! @tparam	N_STATES	Number of plant states (Dimension of x vector)
+//! @tparam M_INPUTS	Number of plant inputs (Dimension of u vector)
+//! @tparam G_OUTPUTS	Number of plant outputs to be controlled (Dimension of y vector)
+//! @tparam P_HOR	Prediction horizon
+//! @tparam C_HOR	Control horizon, must be smaller than prediction horizon
+//! @tparam CONSTRAINT_INPUTRATES	Flag to enable input rate constraints
+//! @tparam CONSTRAINT_OUTPUTS	Flag to enable output constraints
 template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size_t C_HOR, bool CONSTRAINT_INPUTRATES = false, bool CONSTRAINT_OUTPUTS = false>
     class LinearMPC{
 
 		public:
 
-		//Main constructor, initializes all parts of the optimization problem that are independent of 
-		//the constraint selection flags (independent of CONSTRAINT_INPUTRATES and CONSTRAINT_OUTPUTS)
+		//! @brief  Main constructor, called mainly when input rate and output constraints are disabled
+		//! @param[in] A Plant model discrete-time state matrix (A matrix)
+        //! @param[in] B Plant model discrete-time input matrix (B matrix)
+        //! @param[in] C Plant model output matrix (C matrix)
+        //! @param[in] w_u Input cost weight
+        //! @param[in] w_y Output cost weight
+        //! @param[in] w_du Input rate cost weight
+		//! @param[in] x0 Initial plant state
+        //! @param[in] u_z1 Previous sample input to plant
+        //! @param[in] Y_REF Reference vector with references from k=0 to k=P_HOR stacked in a single vector
+		//! @param[in] u_min Vector with lower bounds values for each input
+        //! @param[in] u_max Vector with upper bounds values for each input
 		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
@@ -57,7 +76,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		qpSolver()
 		{
 
-			printf("Testing: Entering constructor \n");
+			//printf("Testing: Entering constructor \n");
 
 
 
@@ -203,12 +222,21 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		}
 
 
-		//Constructor for input rate constraints
-		//Using SFINAE here to enable constructor only and only when input rate constraints
-		// are enabled through template argument CONSTRAINT_INPUTRATES
+		//! @brief  Constructor for case when only input rate constraints are enabled
+		//! @param[in] A Plant model discrete-time state matrix (A matrix)
+        //! @param[in] B Plant model discrete-time input matrix (B matrix)
+        //! @param[in] C Plant model output matrix (C matrix)
+        //! @param[in] w_u Input cost weight
+        //! @param[in] w_y Output cost weight
+        //! @param[in] w_du Input rate cost weight
+		//! @param[in] x0 Initial plant state
+        //! @param[in] u_z1 Previous sample input to plant
+        //! @param[in] Y_REF Reference vector with references from k=0 to k=P_HOR stacked in a single vector
+		//! @param[in] u_min Vector with lower bounds values for each input
+        //! @param[in] u_max Vector with upper bounds values for each input
+		//! @param[in] du_min Vector with lower bounds for the change of rate of each input
+        //! @param[in] du_max Vector with upper bounds for the change of rate of each input
 		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && !COUTPUTS), size_t> = 0>
-		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
-		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
 		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
@@ -216,7 +244,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		 const ArcsMat<M_INPUTS,1>& du_min, const ArcsMat<M_INPUTS,1>& du_max):
 		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
 		{
-			printf("Testing: Entering constructor for when input rates constraints are activated \n");
+			//printf("Testing: Entering constructor for when input rates constraints are activated \n");
 
 			//Call basic constructor
 			// (This doesn't work as it only creates a local copy that is deleted)
@@ -253,12 +281,21 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		}
 
 
-		//Constructor for output constraints
-		//Using SFINAE here to enable constructor only and only when output constraints
-		// are enabled through template argument CONSTRAINT_INPUTRATES
+		//! @brief  Constructor for case when only output constraints are enabled
+		//! @param[in] A Plant model discrete-time state matrix (A matrix)
+        //! @param[in] B Plant model discrete-time input matrix (B matrix)
+        //! @param[in] C Plant model output matrix (C matrix)
+        //! @param[in] w_u Input cost weight
+        //! @param[in] w_y Output cost weight
+        //! @param[in] w_du Input rate cost weight
+		//! @param[in] x0 Initial plant state
+        //! @param[in] u_z1 Previous sample input to plant
+        //! @param[in] Y_REF Reference vector with references from k=0 to k=P_HOR stacked in a single vector
+		//! @param[in] u_min Vector with lower bounds values for each input
+        //! @param[in] u_max Vector with upper bounds values for each input
+		//! @param[in] y_min Vector with lower bounds for each output state (Note: soft-constrained)
+        //! @param[in] y_max Vector with upper bounds for each output state (Note: soft-constrained)
 		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(!CRATES && COUTPUTS), size_t> = 0>
-		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
-		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
 		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
@@ -266,7 +303,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		 const ArcsMat<G_OUTPUTS,1>& y_min, const ArcsMat<G_OUTPUTS,1>& y_max):
 		 LinearMPC(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max)
 		{
-			printf("Testing: Entering constructor for when output constraints are activated \n");
+			//printf("Testing: Entering constructor for when output constraints are activated \n");
 
 
 
@@ -299,12 +336,23 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		}
 
 
-		//Constructor for input rate AND output constraints
-		//Using SFINAE here to enable constructor only and only when input rate AND output constraints
-		// are enabled through template argument CONSTRAINT_INPUTRATES and CONSTRAINT_OUTPUTS
+		//! @brief  Constructor for case when only output constraints are enabled
+		//! @param[in] A Plant model discrete-time state matrix (A matrix)
+        //! @param[in] B Plant model discrete-time input matrix (B matrix)
+        //! @param[in] C Plant model output matrix (C matrix)
+        //! @param[in] w_u Input cost weight
+        //! @param[in] w_y Output cost weight
+        //! @param[in] w_du Input rate cost weight
+		//! @param[in] x0 Initial plant state
+        //! @param[in] u_z1 Previous sample input to plant
+        //! @param[in] Y_REF Reference vector with references from k=0 to k=P_HOR stacked in a single vector
+		//! @param[in] u_min Vector with lower bounds values for each input
+        //! @param[in] u_max Vector with upper bounds values for each input
+		//! @param[in] du_min Vector with lower bounds for the change of rate of each input
+        //! @param[in] du_max Vector with upper bounds for the change of rate of each input
+		//! @param[in] y_min Vector with lower bounds for each output state (Note: soft-constrained)
+        //! @param[in] y_max Vector with upper bounds for each output state (Note: soft-constrained)
 		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && COUTPUTS), size_t> = 0>
-		// template<std::enable_if_t<(CONSTRAINT_INPUTRATES), size_t> = 0>
-		// template <typename = std::enable_if_t<CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS>>
 		LinearMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
@@ -384,6 +432,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			disp(du_max_stored);
 		}
 
+		//TODO: Will delete soon
 		void testOutputToMAT(const std::string fileName)
 		{
 			std::string outputString = "LinearMPC: Printing matrices to specified mat file: " + fileName;
@@ -395,10 +444,12 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			MatFile1.Save("qvec_exp", q_vec);
 			MatFile1.Save("lvec_exp", l_vec);
 			MatFile1.Save("uvec_exp", u_vec);
-
 		}
 
-
+		//! @brief Updates MPC internal quadratic program with new reference vector, new initial state and previous input
+		//! @param[in]	Y_REF	New stacked reference vector
+		//! @param[in]	x0	New initial state
+		//! @param[in]	u_z1	New previous sample input
 		void update(const ArcsMat<P_HOR*G_OUTPUTS,1>& Y_REF, const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1){
 
 			OSQPInt exitflag = 0;
@@ -434,7 +485,11 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		}
 
-				//Start OSQP solver with computed P, A matrices and q, l, u vectors
+		//! @brief Solves quadratic program (Returns by reference)
+		//! @param[in]	U_opt	Vector to store optimal solution vector 
+		//! @param[in]	X_predicted Vector to store predicted states
+		//! @param[in]	slack_var Reference to store slack amount
+		//! @param[in]	solver_status OSQP_Status object reference to store solver status
 		void solve(ArcsMat<P_HOR*M_INPUTS,1>& U_opt, ArcsMat<P_HOR*N_STATES,1> X_predicted,
 		 double& slack_var, OSQP_Status& solver_status)
 		{
@@ -467,11 +522,32 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		}
 
+		//! @brief Enables/disables internal solver warm start
+		//! @param[in]	warmStartFlag Flag to enable/disable solver warm start
+		void setWarmStart(const bool warmStartFlag)
+		{
+			OSQPInt exitflag = 0;
+
+			//Enable/disable warm start and verify that no error occurred
+			exitflag = qpSolver.setWarmStart(warmStartFlag);
+			arcs_assert(exitflag==0);
+		}
+
+		//! @brief Sets maximum number of solver iterations to solve quadratic program
+		//! @param[in]	maxIterations Number of max. iterations
+		void setMaxIterationsSolver(const OSQPInt maxIterations)
+		{
+			OSQPInt exitflag = 0;
+
+			//Set number of max iterations for solver and verify that no error occurred
+			exitflag = qpSolver.setMaxIterations(maxIterations);
+			arcs_assert(exitflag==0);
+		}
+
 
 		private:
 
-		//Initialize OSQP solver with computed P, A matrices and q, l, u vectors
-		//TODO: Add support for other solvers? (such as qpOASES)
+		//! @brief Initializes internal solver (OSQP solver)
 		void initializeSolver()
 		{
 			qpSolver.initializeSolver(P_mat, A_mat, q_vec, l_vec, u_vec);
@@ -479,7 +555,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 
-		//Calculates number of constraints for constraint vectors and matrix computation
+		//! @brief Meta function for calculating size of constraint vectors
 		static constexpr std::size_t constraintsSize() {		
 
 			//Parameter asserts
@@ -510,19 +586,20 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		
 		//Declaration of matrices for solver and solver itself
-		const double SLACK_EPS = 1e5;
+		const double SLACK_EPS = 1e5;	//I think this should be made variable?
 
 
-		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1> P_mat;
-		ArcsMat<constraintsSize(),P_HOR*(N_STATES+M_INPUTS)+1> A_mat;
-		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,1> q_vec;
-		ArcsMat<constraintsSize(),1> l_vec;
-		ArcsMat<constraintsSize(),1> u_vec;		
+		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1> P_mat; //Hessian matrix
+		ArcsMat<constraintsSize(),P_HOR*(N_STATES+M_INPUTS)+1> A_mat;	//Constraint matrix
+		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,1> q_vec;	//Gradient vector
+		ArcsMat<constraintsSize(),1> l_vec;	//Lower bound vector
+		ArcsMat<constraintsSize(),1> u_vec;	//Upper bound vector		
 		ArcsMat<P_HOR*N_STATES, P_HOR*G_OUTPUTS> q_vec_r1;
 		ArcsMat<P_HOR*M_INPUTS, P_HOR*M_INPUTS> q_vec_r2;
 
 		//TODO: du_min and du_max should be conditionally declared only when input rate constraints are enabled
 		//Unfortunately I haven't figured how to do this using SFINAE or some other approach
+		//So we declare them as class members independently of whether input rate constraints are enabled or not
 		ArcsMat<N_STATES,N_STATES> A_stored;
 		ArcsMat<M_INPUTS,1> du_min_stored;
 		ArcsMat<M_INPUTS,1> du_max_stored;
