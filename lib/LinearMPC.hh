@@ -314,16 +314,17 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 			//Stack output constraints
 			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
-			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y(1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_top(-1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_bottom(1);
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
 
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
-			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+			setsubmatrix(A_mat, Meps_Y_top, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
-			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+			setsubmatrix(A_mat, Meps_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 
 			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
 			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
@@ -397,16 +398,17 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 			//Stack output constraints
 			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
-			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y(1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_top(-1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_bottom(1);
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
 			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
 
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
-			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+			setsubmatrix(A_mat, Meps_Y_top, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
-			setsubmatrix(A_mat, Meps_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+			setsubmatrix(A_mat, Meps_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
 
 			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
 			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
@@ -586,7 +588,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		
 		//Declaration of matrices for solver and solver itself
-		const double SLACK_EPS = 1e5;	//I think this should be made variable?
+		const double SLACK_EPS = 1e6;	//I think this should be made variable?
 
 
 		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1> P_mat; //Hessian matrix
