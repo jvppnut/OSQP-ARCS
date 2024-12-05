@@ -546,6 +546,16 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			arcs_assert(exitflag==0);
 		}
 
+		//! @brief Sets maximum runtime of solver
+		//! @param[in]	maxRuntime Number of solver max. runtime (note that this is NOT exact)
+		void setMaxRuntime(const OSQPInt maxRuntime)
+		{
+			OSQPInt exitflag = 0;
+
+			//Set number of max iterations for solver and verify that no error occurred
+			exitflag = qpSolver.setMaxRuntime(maxRuntime);
+			arcs_assert(exitflag==0);
+		}
 
 		private:
 
@@ -588,7 +598,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		
 		//Declaration of matrices for solver and solver itself
-		const double SLACK_EPS = 1e6;	//I think this should be made variable?
+		const double SLACK_EPS = 1e5;	//I think this should be made variable?
 
 
 		ArcsMat<P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1> P_mat; //Hessian matrix

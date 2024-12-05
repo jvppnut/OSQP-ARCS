@@ -65,6 +65,7 @@ int main(void){
 
 
 
+
 	// disp(identTest);
 	// disp(identTest^i);
 	A.Set(0.5, 0,
@@ -213,7 +214,7 @@ int main(void){
 	constexpr double u1c_ex2 = 5.0;  //Input constraint i.e. current limit
 	constexpr double du1c_ex2 = 10000.0; //Input rate of change constraint
 	// constexpr double y1c_ex2 = 0.201*M_PI; //State x2 constraint: Angular position.
-	constexpr double y1c_ex2 = 1.01*M_PI; //State x2 constraint: Angular position.
+	constexpr double y1c_ex2 = 1.05*M_PI; //State x2 constraint: Angular position.
 	//NOTE: Solver loses feasibility for y1c_ex2 = 1.05*M_PI, yref = M_PI, P_HOR = 20, C_HOR = 4
 	//Gotta check why this occurs (slack variable is supposed to shield us from this!)
 	constexpr size_t n_ex2= 2; //Dimension of state vector: We only have x1: ang. velocity and x2: ang. position
@@ -222,9 +223,8 @@ int main(void){
 	constexpr double wY_ex2 = 100.0;
 	constexpr double wU_ex2 = 0.0;
 	constexpr double wDU_ex2 = 1.0;
-	constexpr size_t phor_ex2 = 8;
+	constexpr size_t phor_ex2 = 60;
 	constexpr size_t chor_ex2 = 4;
-
 
 
 
@@ -275,7 +275,6 @@ int main(void){
 
 
 
-
 	////// Control loop //////////////
 	for(size_t i = 1; i<=imax_ex2; i++)
 	{
@@ -290,6 +289,7 @@ int main(void){
 		mpc_ex2.update(YREF_ex2, x0_ex2, uz1_ex2);
 		mpc_ex2.solve(U_opt, X_pred, slackvar, solver_status);
 	
+
 
 		u_ex2 = getsubmatrix<m_ex2,1>(U_opt,1,1);	//Extract optimal solution for present time
 

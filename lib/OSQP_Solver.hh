@@ -467,6 +467,18 @@ template <size_t N_VARS, size_t M_CONSTRAINTS>
             return exitflag;
         }
 
+        //! @brief  Sets maximum solver runtime
+        //! @param[in] maxRuntime Max. run time in seconds (Note that this limit is NOT exact)
+        //! @return OSQP exitflag
+        OSQPInt setMaxRuntime(const OSQPFloat maxRuntime)
+        {
+            OSQPInt exitflag = 0;
+            arcs_assert(maxRuntime>0.0);
+            settings->time_limit = maxRuntime;
+            exitflag = osqp_update_settings(solver.get(), settings.get());
+            return exitflag;
+        }
+
         //! @brief  Enables/Disables warm starting
         //! @param[in] warmStart "true" to enable warm starting, "false" to disable
         //! @return OSQP exitflag
