@@ -274,7 +274,27 @@ int main(void){
 	//  wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
 	//  umin_ex2, umax_ex2);
 
+	//---------- Test with empty constructor
+	//With input rate and output constraints
+	// LinearMPC<n_ex2,m_ex2,g_ex2,phor_ex2,chor_ex2,true, true> mpc_ex2;
+	// 
+	// mpc_ex2.initializeMPC(Ad_ex1,Bd_ex1,C_ex1,
+	//  wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
+	//  umin_ex2, umax_ex2, dumin_ex2, dumax_ex2, ymin_ex2, ymax_ex2);
 
+	 //Without output constraints
+	//  LinearMPC<n_ex2,m_ex2,g_ex2,phor_ex2,chor_ex2,true, false> mpc_ex2;
+
+	//  mpc_ex2.initializeMPC(Ad_ex1,Bd_ex1,C_ex1,
+	//  wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
+	//  umin_ex2, umax_ex2, dumin_ex2, dumax_ex2);
+
+
+	 //Without input rate and output constraints
+	//  LinearMPC<n_ex2,m_ex2,g_ex2,phor_ex2,chor_ex2,false, false> mpc_ex2;
+
+	//  mpc_ex2.initializeMPC(Ad_ex1,Bd_ex1,C_ex1, wU_ex2, wY_ex2, wDU_ex2, x0_ex2, uz1_ex2, YREF_ex2, 
+	//  umin_ex2, umax_ex2);
 
 
 

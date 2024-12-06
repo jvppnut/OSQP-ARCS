@@ -453,7 +453,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 			//If it has, throw "not enough arguments" error to instruct user to use the adequate initializeMPC function
 			static_assert((!CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS), "LinearMPC: Not enough arguments");
 
-			initializeMPCBase(w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+			initializeMPCBase(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
 		 }
 
 
