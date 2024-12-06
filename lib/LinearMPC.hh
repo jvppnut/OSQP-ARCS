@@ -443,6 +443,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 		//! @brief Initializes MPC object without input rate/ output constraints 
+		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(!CRATES && !COUTPUTS), size_t> = 0>
 		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
@@ -450,7 +451,7 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		 {
 			//Check if the LinearMPC object to be initialized within this function does not have input rate/output constraints
 			//If it has, throw "not enough arguments" error to instruct user to use the adequate initializeMPC function
-			static_assert((!CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS), "LinearMPC: Not enough arguments")
+			static_assert((!CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS), "LinearMPC: Not enough arguments");
 
 			initializeMPCBase(w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
 		 }
@@ -458,14 +459,13 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 		//! @brief Initializes MPC object with only input rate constraints
+		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && !COUTPUTS), size_t> = 0>
 		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
 		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
 		 const ArcsMat<M_INPUTS,1>& du_min, const ArcsMat<M_INPUTS,1>& du_max)
 		 {
-			//Check if the LinearMPC object to be initialized within this function has only input rate constraints enabled
-			static_assert((CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS), "LinearMPC: Incorrect arguments");
 
 			initializeMPCBase(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
 
@@ -498,14 +498,14 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 		//! @brief Initializes MPC object with only output constraints
+		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(!CRATES && COUTPUTS), size_t> = 0>
 		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
 		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
 		 const ArcsMat<G_OUTPUTS,1>& y_min, const ArcsMat<G_OUTPUTS,1>& y_max)
 		 {
-			//Check if the LinearMPC object to be initialized within this function has only output constraints enabled
-			static_assert((!CONSTRAINT_INPUTRATES && CONSTRAINT_OUTPUTS), "LinearMPC: Incorrect arguments");
+
 
 			initializeMPCBase(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
 
@@ -537,10 +537,12 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 
 		//! @brief Initializes MPC object with both input rate and output constraints
+		template<bool CRATES = CONSTRAINT_INPUTRATES, bool COUTPUTS = CONSTRAINT_OUTPUTS, std::enable_if_t<(CRATES && COUTPUTS), size_t> = 0>
 		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
 		 double w_u, double w_y, double w_du,
 		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
 		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
+		 const ArcsMat<M_INPUTS,1>& du_min, const ArcsMat<M_INPUTS,1>& du_max,
 		 const ArcsMat<G_OUTPUTS,1>& y_min, const ArcsMat<G_OUTPUTS,1>& y_max)
 		 {
 			//Check if the LinearMPC object to be initialized within this function has only both input rate and ouput constraints enabled

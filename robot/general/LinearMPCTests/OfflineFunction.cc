@@ -185,6 +185,7 @@ int main(void){
 	// disp(B_ex1);
 
 
+
 	ArcsMat<m_ex1,1> umax_ex1 = {u1c_ex1};
 	ArcsMat<m_ex1,1> umin_ex1 = -umax_ex1;
 	ArcsMat<m_ex1,1> dumax_ex1 = {du1c_ex1};
@@ -275,6 +276,9 @@ int main(void){
 
 
 
+
+
+
 	////// Control loop //////////////
 	for(size_t i = 1; i<=imax_ex2; i++)
 	{
@@ -313,6 +317,8 @@ int main(void){
 		tsim_ex2 += Ts_ex2;	//Advance time
 
 	}
+
+
 
 	MatExport toMATLAB("mpcControlEx2.mat");
 	toMATLAB.Save("t_vec_exp", t_ex2);
