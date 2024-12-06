@@ -47,6 +47,25 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		public:
 
+		
+		//! @brief  Empty constructor
+		LinearMPC():
+		P_mat(),
+		A_mat(),
+		q_vec(),
+		l_vec(),
+		u_vec(),
+		q_vec_r1(),
+		q_vec_r2(),
+		A_stored(),
+		du_min_stored(),
+		du_max_stored(),
+		qpSolver()
+		{
+
+		}
+
+
 		//! @brief  Main constructor, called mainly when input rate and output constraints are disabled
 		//! @param[in] A Plant model discrete-time state matrix (A matrix)
         //! @param[in] B Plant model discrete-time input matrix (B matrix)
@@ -421,6 +440,170 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 
 		}
 
+
+
+		//! @brief Initializes MPC object without input rate/ output constraints 
+		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max)
+		 {
+			//Check if the LinearMPC object to be initialized within this function does not have input rate/output constraints
+			//If it has, throw "not enough arguments" error to instruct user to use the adequate initializeMPC function
+			static_assert((!CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS), "LinearMPC: Not enough arguments")
+
+			initializeMPCBase(w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+		 }
+
+
+
+		//! @brief Initializes MPC object with only input rate constraints
+		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
+		 const ArcsMat<M_INPUTS,1>& du_min, const ArcsMat<M_INPUTS,1>& du_max)
+		 {
+			//Check if the LinearMPC object to be initialized within this function has only input rate constraints enabled
+			static_assert((CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS), "LinearMPC: Incorrect arguments");
+
+			initializeMPCBase(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+
+			//Some necessary storage
+			du_min_stored = du_min;
+			du_max_stored = du_max;
+
+			//Stack input rate constraints
+			ArcsMat<M_INPUTS*P_HOR,M_INPUTS*P_HOR> D_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> l_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> u_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> b0;
+			setsubmatrix(b0, u_z1, 1, 1);
+			auto d_DU = eye<P_HOR,P_HOR>();
+			for(size_t i=2; i<=P_HOR; i++){
+				d_DU(i,i-1) = -1.0;
+			}
+			Kron(d_DU, eye<M_INPUTS,M_INPUTS>(), D_DU);		
+			setsubmatrix(A_mat, D_DU, 1+P_HOR*N_STATES + P_HOR*M_INPUTS, P_HOR*N_STATES+1);
+			setsubmatrix(l_DU,	Kron(ones<C_HOR,1>(),du_min)	,1,1);
+			setsubmatrix(u_DU,	Kron(ones<C_HOR,1>(),du_max)	,1,1);	
+
+			setsubmatrix(l_vec,	l_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+			setsubmatrix(u_vec,	u_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+
+			//Initialize solver
+			initializeSolver();
+		 }
+
+
+
+		//! @brief Initializes MPC object with only output constraints
+		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
+		 const ArcsMat<G_OUTPUTS,1>& y_min, const ArcsMat<G_OUTPUTS,1>& y_max)
+		 {
+			//Check if the LinearMPC object to be initialized within this function has only output constraints enabled
+			static_assert((!CONSTRAINT_INPUTRATES && CONSTRAINT_OUTPUTS), "LinearMPC: Incorrect arguments");
+
+			initializeMPCBase(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+
+			//Stack output constraints
+			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_top(-1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_bottom(1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
+
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y_top, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+
+			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
+			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			
+			setsubmatrix(l_vec,l_Y_top,1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS, 1);
+			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + P_HOR*M_INPUTS + (P_HOR-C_HOR)*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			
+			//Initialize solver
+			initializeSolver();
+			
+		 }
+
+
+
+		//! @brief Initializes MPC object with both input rate and output constraints
+		void initializeMPC(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max,
+		 const ArcsMat<G_OUTPUTS,1>& y_min, const ArcsMat<G_OUTPUTS,1>& y_max)
+		 {
+			//Check if the LinearMPC object to be initialized within this function has only both input rate and ouput constraints enabled
+			static_assert((CONSTRAINT_INPUTRATES && CONSTRAINT_OUTPUTS), "LinearMPC: Incorrect arguments");
+
+			initializeMPCBase(A, B, C, w_u, w_y, w_du, x0, u_z1, Y_REF, u_min, u_max);
+
+					//----------- Input rate constraints ---------------
+			
+			//Some necessary storage
+			du_min_stored = du_min;
+			du_max_stored = du_max;
+
+			//Stack input rate constraints
+			ArcsMat<M_INPUTS*P_HOR,M_INPUTS*P_HOR> D_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> l_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> u_DU;
+			ArcsMat<M_INPUTS*P_HOR,1> b0;
+			setsubmatrix(b0, u_z1, 1, 1);
+			auto d_DU = eye<P_HOR,P_HOR>();
+			for(size_t i=2; i<=P_HOR; i++){
+				d_DU(i,i-1) = -1.0;
+			}
+			Kron(d_DU, eye<M_INPUTS,M_INPUTS>(), D_DU);		
+			setsubmatrix(A_mat, D_DU, 1+P_HOR*N_STATES + P_HOR*M_INPUTS, P_HOR*N_STATES+1);
+			setsubmatrix(l_DU,	Kron(ones<C_HOR,1>(),du_min)	,1,1);
+			setsubmatrix(u_DU,	Kron(ones<C_HOR,1>(),du_max)	,1,1);	
+
+			setsubmatrix(l_vec,	l_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+			setsubmatrix(u_vec,	u_DU + b0,1+P_HOR*N_STATES + P_HOR*M_INPUTS,1);
+
+			//----------- Output constraints ---------------
+
+			//Stack output constraints
+			ArcsMat<P_HOR*G_OUTPUTS,P_HOR*N_STATES> Mx_Y = Kron(eye<P_HOR,P_HOR>(),C);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_top(-1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> Meps_Y_bottom(1);
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_top = Kron(ones<P_HOR,1>(),y_max);		
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_top(-OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> u_Y_bottom(OSQP_INFTY); 	
+			ArcsMat<P_HOR*G_OUTPUTS,1> l_Y_bottom = Kron(ones<P_HOR,1>(),y_min);
+
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y_top, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+			setsubmatrix(A_mat, Mx_Y, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			setsubmatrix(A_mat, Meps_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1+P_HOR*(M_INPUTS+N_STATES));
+
+			setsubmatrix(u_vec,u_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
+			setsubmatrix(u_vec, u_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);
+			
+			setsubmatrix(l_vec,l_Y_top,1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS, 1);
+			setsubmatrix(l_vec, l_Y_bottom, 1+P_HOR*N_STATES + 2*P_HOR*M_INPUTS + P_HOR*G_OUTPUTS, 1);	
+
+			//Initialize solver
+			initializeSolver();		
+
+
+			
+		 }
+
+
+
+
 		//TODO: Will delete soon
 		void checkMatrices(){
 			printf("Test to check what happens to matrices after constructor \n");
@@ -558,6 +741,160 @@ template <size_t N_STATES, size_t M_INPUTS, size_t G_OUTPUTS, size_t P_HOR, size
 		}
 
 		private:
+
+		
+		//! @brief Initializes MPC object without input rate/ output constraints (for internal use)
+		void initializeMPCBase(const ArcsMat<N_STATES,N_STATES>& A, const ArcsMat<N_STATES,M_INPUTS>& B, const ArcsMat<G_OUTPUTS,N_STATES>& C,
+		 double w_u, double w_y, double w_du,
+		 const ArcsMat<N_STATES,1>& x0, const ArcsMat<M_INPUTS,1>& u_z1, const ArcsMat<G_OUTPUTS*P_HOR,1>& Y_REF,
+		 const ArcsMat<M_INPUTS,1>& u_min, const ArcsMat<M_INPUTS,1>& u_max)
+		 {
+			//printf("Testing: Entering constructor \n");
+
+
+
+
+			arcs_assert(w_u >= 0);
+			arcs_assert(w_du >= 0);
+			arcs_assert(w_y >= 0);
+
+
+			//Some necessary storage
+			A_stored = A;
+
+
+			//------------ P matrix -----------------
+
+			auto QU = w_u*eye<M_INPUTS*P_HOR,M_INPUTS*P_HOR>();
+			auto QY_pre = w_y*eye<G_OUTPUTS*P_HOR, G_OUTPUTS*P_HOR>();
+			auto QDU_pre = w_du*eye<M_INPUTS*P_HOR,M_INPUTS*P_HOR>();
+			auto CBAR = Kron(eye<P_HOR,P_HOR>(),C);
+			ArcsMat<M_INPUTS*P_HOR,M_INPUTS*P_HOR> D_DU;
+			auto d_DU = eye<P_HOR,P_HOR>();
+			for(size_t i=2; i<=P_HOR; i++){
+				d_DU(i,i-1) = -1.0;
+			}
+			Kron(d_DU, eye<M_INPUTS,M_INPUTS>(), D_DU);		
+
+			auto QY = tp(CBAR)*QY_pre*CBAR;
+			auto QDU = tp(D_DU)*QDU_pre*D_DU;
+
+			//Populate Hessian matrix P 
+			setsubmatrix(P_mat, QY, 1, 1);
+			setsubmatrix(P_mat, QU+QDU, 1+P_HOR*N_STATES, 1+P_HOR*N_STATES);
+			P_mat(P_HOR*(N_STATES+M_INPUTS)+1,P_HOR*(N_STATES+M_INPUTS)+1) = SLACK_EPS;
+			P_mat = 2*P_mat;	//To eliminate the default 1/2 multiplier of OSQP solver (is this needed?)
+			// disp(P_mat);
+
+
+			
+			//------------ q vector -----------------
+			
+			//TODO: Fix submatrix sizes
+			ArcsMat<M_INPUTS*P_HOR,1> b0;
+			setsubmatrix(b0, u_z1, 1, 1);
+			q_vec_r1 = -2*tp(CBAR)*tp(QY_pre);
+			q_vec_r2 = -2*tp(D_DU)*tp(QDU_pre);	
+			// disp(D_DU);
+			// disp(QDU);
+			setsubmatrix(q_vec, q_vec_r1*Y_REF, 1, 1);
+			setsubmatrix(q_vec, q_vec_r2*b0, 1+P_HOR*N_STATES, 1);
+
+			// disp(q_vec);
+
+
+			//-----------A matrix ---------------
+
+			//--- Dynamic constraints
+			ArcsMat<P_HOR*N_STATES,P_HOR*(N_STATES+M_INPUTS)+1> M_DYN;
+			ArcsMat<P_HOR*N_STATES,1> l_DYN;
+			ArcsMat<P_HOR,P_HOR> dyn_base = zeros<P_HOR,P_HOR>();
+			for(size_t i=2; i<=P_HOR; i++){
+				dyn_base(i,i-1) = -1.0;
+			}
+			auto Mx_DYN = Kron(eye<P_HOR,P_HOR>(),eye<N_STATES,N_STATES>()) + Kron(dyn_base,A);
+			auto Mu_DYN = Kron(-eye<P_HOR,P_HOR>(),B);
+			
+			setsubmatrix(M_DYN, Mx_DYN, 1, 1);
+			setsubmatrix(M_DYN, Mu_DYN, 1, P_HOR*N_STATES+1);			
+			setsubmatrix(l_DYN, A*x0, 1, 1);
+		
+
+			//--- Input constraints
+			ArcsMat<P_HOR*M_INPUTS,P_HOR*(N_STATES+M_INPUTS)+1> M_U;	
+			auto Mu_U = eye<P_HOR*M_INPUTS,P_HOR*M_INPUTS>();
+
+			setsubmatrix(M_U, Mu_U, 1, P_HOR*N_STATES+1);
+			auto l_U = Kron(ones<P_HOR,1>(),u_min);
+			auto u_U = Kron(ones<P_HOR,1>(),u_max);
+
+
+			//-- Control horizon constraint (in the case that input rate constraints are not enabled)
+
+			/*TODO: Blocking movements should be implemented by direct substitution (condensed formulation)
+				 in order to reduce the number of variables to optimize. I was too lazy at the moment so just
+				  implemented it as additional constraints
+			*/
+			if constexpr(P_HOR-C_HOR>0)
+			{
+				if(CONSTRAINT_INPUTRATES == false)
+				{
+
+					ArcsMat<(P_HOR-C_HOR)*M_INPUTS,P_HOR*(N_STATES+M_INPUTS)+1> M_CHOR;	
+					ArcsMat<(P_HOR-C_HOR)*M_INPUTS,1> l_CHOR;
+
+					ArcsMat<P_HOR-C_HOR,P_HOR+1-C_HOR> block_base;
+					for(size_t i=1; i<=P_HOR-C_HOR; i++)
+					{
+					block_base(i,i) = -1.0;
+					block_base(i,i+1) = 1.0;
+					}
+
+					// disp(block_base);
+					auto block_mat = Kron(block_base,eye<M_INPUTS,M_INPUTS>());
+					setsubmatrix(M_CHOR, block_mat, 1, 1 + P_HOR*N_STATES + (C_HOR-1)*M_INPUTS);
+					// disp(block_mat);
+					// disp(M_CHOR);
+
+					//Stack on constraint matrix A_mat
+					setsubmatrix(A_mat, M_CHOR, 1+P_HOR*(N_STATES+M_INPUTS), 1);
+					// disp(A_mat);
+				}
+
+
+			}
+
+			//-----------Stack everything together ---------------
+
+			//Populate constraint matrix A_mat
+			setsubmatrix(A_mat, M_DYN, 1, 1);
+			setsubmatrix(A_mat, M_U, 1+P_HOR*N_STATES, 1);
+			A_mat(constraintsSize(),1+P_HOR*(M_INPUTS+N_STATES)) = 1;
+
+			//Populate lower and upper constraints vectors l_vec and u_vec
+			setsubmatrix(u_vec, l_DYN, 1, 1); 
+			setsubmatrix(u_vec, u_U, 1+P_HOR*N_STATES, 1);
+			u_vec(constraintsSize(),1) = OSQP_INFTY; //Slack variable upper bound (infinity)
+
+			setsubmatrix(l_vec, l_DYN, 1, 1);
+			setsubmatrix(l_vec, l_U, 1+P_HOR*N_STATES, 1);
+			l_vec(constraintsSize(),1) = 0;		//Slack variable lower bound (zero, must be positive)
+
+			// disp(A_mat);
+			// disp(u_vec);
+			// disp(l_vec);
+
+			//Initialize solver rightaway if we don't have input rate and output constraints
+			//Else, we have to wait until A_mat and u_vec, l_vec are properly populated with
+			//their corresponding constraints
+			if constexpr(!CONSTRAINT_INPUTRATES && !CONSTRAINT_OUTPUTS)
+			{
+				initializeSolver();
+			}
+
+		 }
+
+
 
 		//! @brief Initializes internal solver (OSQP solver)
 		void initializeSolver()
